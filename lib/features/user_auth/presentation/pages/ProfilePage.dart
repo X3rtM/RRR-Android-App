@@ -252,14 +252,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
   TextEditingController _mobileController = TextEditingController();
 
   @override
+  @override
   void initState() {
     super.initState();
     _user = widget.user;
 
-    _nameController.text = _user.name ?? '';
-    _ageController.text = _user.age ?? '';
-    _dobController.text = _user.dob ?? '';
-    _mobileController.text = _user.mobile ?? '';
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(_user.uid)
+        .get()
+        .then((DocumentSnapshot documentSnapshot) {
+      if (documentSnapshot.exists) {
+        Map<String, dynamic>? userData =
+        documentSnapshot.data() as Map<String, dynamic>?;
+
+        setState(() {
+          _nameController.text = userData?['name'] ?? '';
+          _dobController.text = userData?['dob'] ?? '';
+          _mobileController.text = userData?['mobile'] ?? '';
+          _ageController.text = _calculateAge(_dobController.text);
+        });
+      }
+    });
   }
 
   @override
@@ -299,8 +313,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               child: AbsorbPointer(
                 child: TextField(
                   controller: _dobController,
-                  decoration:
-                  InputDecoration(labelText: 'Date of Birth (DD-MM-YYYY)'),
+                  decoration: InputDecoration(labelText: 'Date of Birth (DD-MM-YYYY)'),
                 ),
               ),
             ),

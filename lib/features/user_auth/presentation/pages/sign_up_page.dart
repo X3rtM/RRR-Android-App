@@ -159,7 +159,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginPage()));
+                        navigateToLoginPage();
                       },
                       child: Text(
                         "Login",
@@ -203,14 +203,28 @@ class _SignUpPageState extends State<SignUpPage> {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'email': email,
         'username': username, // Save username
+        'userType': _userType, // Save user type
         // Other user data
       });
 
       showToast(message: "User is successfully created as $_userType");
       Navigator.pushNamed(context, "/home");
     } else {
-      showToast(message: "Some error happened");
+      showToast(message: "Error occurred while signing up");
     }
+  }
+
+  void navigateToLoginPage() {
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginPage()));
+  }
+
+  void showToast({required String message}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   bool _isValidPassword(String password) {
