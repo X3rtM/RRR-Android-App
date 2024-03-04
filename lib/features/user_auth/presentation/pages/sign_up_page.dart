@@ -228,7 +228,6 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   bool _isValidPassword(String password) {
-    // Basic password validation (at least 8 characters)
     return password.length >= 8;
   }
 }
