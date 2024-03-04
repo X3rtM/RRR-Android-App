@@ -8,10 +8,20 @@ class TasksPage extends StatefulWidget {
   _TasksPageState createState() => _TasksPageState();
 }
 
+enum SortBy {
+  Name,
+  DueDate,
+  AssignedOn,
+  Points,
+}
+
 class _TasksPageState extends State<TasksPage> {
   late User currentUser;
   String userType = '';
   late List<TaskModel> tasks = [];
+  SortBy sortBy = SortBy.Name;
+  String _searchText = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -27,58 +37,66 @@ class _TasksPageState extends State<TasksPage> {
       if (userType == 'parent') {
         _fetchTasks(userType, userId);
       } else if (userType == 'child') {
-        _fetchChildTasks(userDoc['name'] ?? '');
+        _fetchChildTasks(userId);
       }
     });
   }
 
   Future<void> _fetchTasks(String userType, String userId) async {
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('tasks')
-        .where(userType == 'parent' ? 'assignedBy' : 'assignedTo', isEqualTo: userId)
-        .get();
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('tasks')
+          .where(userType == 'parent' ? 'assignedBy' : 'assignedTo', isEqualTo: userId)
+          .get();
 
-    final allTasks = querySnapshot.docs.map((doc) {
-      if (userType == 'parent') {
-        return TaskModel.fromMap(doc.id, doc.data(), assignedBy: doc['assignedBy']);
-      } else {
-        return TaskModel.fromMap(doc.id, doc.data(), assignedBy: '');
-      }
-    }).toList();
+      final Set<String> taskIds = {}; // Set to store unique task IDs
+      final List<TaskModel> allTasks = [];
 
-    if (userType == 'parent') {
-      final allUsersSnapshot = await FirebaseFirestore.instance.collection('users').get();
-      final allUsers = allUsersSnapshot.docs.map((doc) => doc.id).toList();
-
-      for (final user in allUsers) {
-        if (user != userId) {
-          final childTasksSnapshot = await FirebaseFirestore.instance
-              .collection('tasks')
-              .where('assignedTo', isEqualTo: user)
-              .get();
-
-          final childTasks = childTasksSnapshot.docs.map((doc) {
-            return TaskModel.fromMap(doc.id, doc.data(), assignedBy: userId);
-          }).toList();
-          allTasks.addAll(childTasks);
+      querySnapshot.docs.forEach((doc) {
+        final taskId = doc.id;
+        if (!taskIds.contains(taskId)) {
+          final task = TaskModel.fromMap(
+              taskId, doc.data(), assignedBy: doc['assignedBy']);
+          allTasks.add(task);
+          taskIds.add(taskId);
         }
-      }
-    }
+      });
 
-    setState(() {
-      tasks = allTasks;
-    });
+      // Fetching names of assigned users
+      final List<String> assignedUserIds = allTasks.map((task) => task.assignedTo).toList();
+      final Map<String, String> userNames = {};
+
+      // Fetching user names from Firestore
+      await Future.forEach(assignedUserIds, (userId) async {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+        final userName = userDoc['name'];
+        userNames[userId] = userName;
+      });
+
+      // Sorting tasks by user names
+      allTasks.sort((task1, task2) {
+        final name1 = userNames[task1.assignedTo] ?? '';
+        final name2 = userNames[task2.assignedTo] ?? '';
+        return name1.compareTo(name2);
+      });
+
+      setState(() {
+        tasks = allTasks;
+      });
+    } catch (e) {
+      print('Error fetching tasks: $e');
+    }
   }
 
-  Future<void> _fetchChildTasks(String name) async {
-    final querySnapshot = await FirebaseFirestore.instance.collection('tasks').where('assignedTo', isEqualTo: name).get();
+  Future<void> _fetchChildTasks(String uid) async {
+    final querySnapshot = await FirebaseFirestore.instance.collection('tasks').where('assignedTo', isEqualTo: uid).get();
 
     final allTasks = querySnapshot.docs.map((doc) {
       return TaskModel.fromMap(doc.id, doc.data(), assignedBy: '');
     }).toList();
 
     // Fetch tasks assigned by parent to the child
-    final parentTasksSnapshot = await FirebaseFirestore.instance.collection('tasks').where('assignedBy', isEqualTo: name).get();
+    final parentTasksSnapshot = await FirebaseFirestore.instance.collection('tasks').where('assignedBy', isEqualTo: uid).get();
 
     final parentTasks = parentTasksSnapshot.docs.map((doc) {
       return TaskModel.fromMap(doc.id, doc.data(), assignedBy: doc['assignedBy']);
@@ -101,16 +119,8 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
-  Widget _buildChildTasks() {
-    return ListView.builder(
-      itemCount: tasks.length,
-      itemBuilder: (context, index) {
-        return _buildTaskItem(tasks[index]);
-      },
-    );
-  }
-
   Widget _buildParentTasks() {
+    String userId = FirebaseAuth.instance.currentUser!.uid;
     return Column(
       children: [
         ElevatedButton(
@@ -120,11 +130,75 @@ class _TasksPageState extends State<TasksPage> {
           child: Text('Add Task'),
         ),
         SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: buildSearchBar((filteredTasks) {
+                  setState(() {
+                    tasks = filteredTasks;
+                  });
+                }, isParent: true),
+              ),
+            ),
+            PopupMenuButton<SortBy>(
+              onSelected: (sortBy) {
+                setState(() {
+                  this.sortBy = sortBy;
+                });
+                _fetchTasks('parent', userId); // Fetch tasks with updated sorting
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<SortBy>>[
+                PopupMenuItem<SortBy>(
+                  value: SortBy.DueDate,
+                  child: Text('Sort by Due Date'),
+                ),
+                PopupMenuItem<SortBy>(
+                  value: SortBy.AssignedOn,
+                  child: Text('Sort by Assigned On'),
+                ),
+                PopupMenuItem<SortBy>(
+                  value: SortBy.Name,
+                  child: Text('Sort by Name'),
+                ),
+              ],
+            ),
+          ],
+        ),
         Expanded(
-          child: ListView.builder(
-            itemCount: tasks.length,
-            itemBuilder: (context, index) {
-              return _buildTaskItem(tasks[index]);
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('tasks').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return CircularProgressIndicator();
+              }
+              List<TaskModel> tasksList = tasks;
+              if (snapshot.hasData) {
+                tasksList = tasksList.where((task) {
+                  return task.description.toLowerCase().contains(_searchText.toLowerCase()) ||
+                      task.assignedTo.toLowerCase().contains(_searchText.toLowerCase());
+                }).toList();
+                switch (sortBy) {
+                  case SortBy.DueDate:
+                    tasksList.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+                    break;
+                  case SortBy.AssignedOn:
+                    tasksList.sort((a, b) => a.addedOn.compareTo(b.addedOn));
+                    break;
+                  case SortBy.Name:
+                    tasksList.sort((a, b) => a.assignedTo.toLowerCase().compareTo(b.assignedTo.toLowerCase()));
+                    break;
+                  default:
+                    break;
+                }
+              }
+              return ListView.builder(
+                itemCount: tasksList.length,
+                itemBuilder: (context, index) {
+                  return _buildTaskItem(tasksList[index]);
+                },
+              );
             },
           ),
         ),
@@ -132,40 +206,277 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
+  Widget _buildChildTasks() {
+    String userId = FirebaseAuth.instance.currentUser!.uid;
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: buildSearchBar((filteredTasks) {
+                  setState(() {
+                    tasks = filteredTasks;
+                  });
+                }, isParent: false),
+              ),
+            ),
+            PopupMenuButton<SortBy>(
+              onSelected: (sortBy) {
+                setState(() {
+                  this.sortBy = sortBy;
+                });
+                _fetchTasks('child', userId); // Fetch tasks with updated sorting
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<SortBy>>[
+                PopupMenuItem<SortBy>(
+                  value: SortBy.DueDate,
+                  child: Text('Sort by Due Date'),
+                ),
+                PopupMenuItem<SortBy>(
+                  value: SortBy.AssignedOn,
+                  child: Text('Sort by Assigned On'),
+                ),
+                PopupMenuItem<SortBy>(
+                  value: SortBy.Points,
+                  child: Text('Sort by Points'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('tasks').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return CircularProgressIndicator();
+              }
+              List<TaskModel> tasksList = tasks;
+              if (snapshot.hasData) {
+                tasksList = tasksList.where((task) {
+                  return task.description.toLowerCase().contains(_searchText.toLowerCase());
+                }).toList();
+                switch (sortBy) {
+                  case SortBy.DueDate:
+                    tasksList.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+                    break;
+                  case SortBy.AssignedOn:
+                    tasksList.sort((a, b) => a.addedOn.compareTo(b.addedOn));
+                    break;
+                  case SortBy.Points:
+                    tasksList.sort((a, b) => a.redeemPoints.compareTo(b.redeemPoints));
+                    break;
+                  default:
+                    break;
+                }
+              }
+              return ListView.builder(
+                itemCount: tasksList.length,
+                itemBuilder: (context, index) {
+                  return _buildTaskItem(tasksList[index]);
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<TaskModel> filterAndSortTasks(List<TaskModel> allTasks) {
+    String searchQuery = _searchController.text.toLowerCase();
+    List<TaskModel> filteredTasks = allTasks.where((task) =>
+    task.description.toLowerCase().contains(searchQuery) ||
+        task.assignedTo.toLowerCase().contains(searchQuery)).toList();
+
+    switch (sortBy) {
+      case SortBy.DueDate:
+        filteredTasks.sort((task1, task2) => task1.dueDate.compareTo(task2.dueDate));
+        break;
+      case SortBy.AssignedOn:
+        filteredTasks.sort((task1, task2) => task1.addedOn.compareTo(task2.addedOn));
+        break;
+      case SortBy.Name:
+        filteredTasks.sort((task1, task2) => task1.assignedTo.toLowerCase().compareTo(task2.assignedTo.toLowerCase()));
+        break;
+      default:
+      // Default sorting behavior, no need to sort here
+        break;
+    }
+    return filteredTasks;
+  }
+
+  TextField buildSearchBar(Function(List<TaskModel>) filterTasks, {required bool isParent}) {
+    return TextField(
+      controller: _searchController, // Use the search controller
+      onChanged: (value) {
+        setState(() {
+          _searchText = value; // Update the search text
+        });
+        List<TaskModel> filtered = tasks.where((task) {
+          if (isParent) {
+            return task.description.toLowerCase().contains(_searchText.toLowerCase()) ||
+                task.assignedTo.toLowerCase().contains(_searchText.toLowerCase());
+          } else {
+            return task.description.toLowerCase().contains(_searchText.toLowerCase());
+          }
+        }).toList();
+        filterTasks(filtered);
+      },
+      decoration: InputDecoration(
+        hintText: isParent ? 'Search by description or assignedTo' : 'Search by description',
+        border: OutlineInputBorder(),
+      ),
+    );
+  }
+
+  String _formatDate(String dateString) {
+    // Split the dateString using "-" as the separator
+    List<String> dateParts = dateString.split('-');
+
+    // Ensure that there are three parts (day, month, year)
+    if (dateParts.length == 3) {
+      int day = int.tryParse(dateParts[0]) ?? 0;
+      int month = int.tryParse(dateParts[1]) ?? 0;
+      int year = int.tryParse(dateParts[2]) ?? 0;
+
+      // Create a DateTime object from the parsed parts
+      DateTime dateTime = DateTime(year, month, day);
+
+      // Format the DateTime object as required
+      String formattedDate = DateFormat('dd-MM-yyyy').format(dateTime);
+
+      return formattedDate;
+    } else {
+      return ''; // Return empty string if the date format is invalid
+    }
+  }
+
   Widget _buildTaskItem(TaskModel task) {
+    Color statusColor = task.completed ? Colors.green : Colors.red;
+    String statusText = task.completed ? 'Completed' : 'Not Completed';
+
     return Card(
       margin: EdgeInsets.all(8),
       child: ListTile(
         title: Text(task.description),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        subtitle: Table(
+          columnWidths: {
+            0: FlexColumnWidth(1), // Assign equal flex to each column
+            1: FlexColumnWidth(1),
+            2: FlexColumnWidth(1),
+          },
           children: [
-            Text('Assigned to: ${task.assignedTo}'),
-            Text('Deadline: ${task.dueDate}'),
-            Text('Points: ${task.redeemPoints}'),
+            TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Assigned On: ${_formatDate(task.addedOn)}'),
+                      Text('Points: ${task.redeemPoints}'),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Deadline: ${_formatDate(task.dueDate)}'),
+                      Text('Status: $statusText', style: TextStyle(color: statusColor)),
+                    ],
+                  ),
+                ),
+                if (userType == 'parent')
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance.collection('users').doc(task.assignedTo).get(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return Text('Assigned To: Loading...'); // Show loading indicator
+                            }
+                            if (snapshot.hasError) {
+                              return Text('Error: Unable to fetch user data'); // Show error message
+                            }
+                            if (snapshot.hasData && snapshot.data!.exists) {
+                              Map<String, dynamic>? userData = snapshot.data!.data() as Map<String, dynamic>?;
+
+                              // Display the name of the child user
+                              return Text('Assigned To: ${userData?['name'] ?? 'Unknown'}');
+                            } else {
+                              return Text('Assigned To: Unknown'); // Show if user data doesn't exist
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                if (userType == 'child')
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: IconButton(
+                          icon: Icon(Icons.edit),
+                          onPressed: () {
+                            _updateTaskStatus(task);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                if (userType == 'parent')
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit),
+                          onPressed: () {
+                            _showEditTaskDialog(task);
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete),
+                          onPressed: () {
+                            _removeTask(task);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
-        trailing: userType == 'parent'
-            ? Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(Icons.edit),
-              onPressed: () {
-                _showEditTaskDialog(task);
-              },
-            ),
-            IconButton(
-              icon: Icon(Icons.delete),
-              onPressed: () {
-                _removeTask(task);
-              },
-            ),
-          ],
-        )
-            : null,
       ),
     );
+  }
+
+  void _updateTaskStatus(TaskModel task) {
+    String taskId = task.id;
+    bool newStatus = !task.completed;
+
+    FirebaseFirestore.instance.collection('tasks').doc(taskId).update({
+      'completed': newStatus,
+    }).then((_) {
+      setState(() {
+        task.completed = newStatus;
+      });
+      print('Task status updated successfully');
+    }).catchError((error) {
+      print('Error updating task status: $error');
+    });
   }
 
   void _showAddTaskDialog() {
@@ -216,7 +527,7 @@ class _TasksPageState extends State<TasksPage> {
                             );
                             if (selectedDate != null) {
                               setState(() {
-                                dueDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+                                dueDate = DateFormat('dd-MM-yyyy').format(selectedDate);
                               });
                             }
                           },
@@ -253,7 +564,7 @@ class _TasksPageState extends State<TasksPage> {
 
   void _showEditTaskDialog(TaskModel task) {
     String description = task.description;
-    String assignedTo = task.assignedTo;
+    String assignedTo = task.assignedTo; // Assuming assignedTo initially contains the UID
     int redeemPoints = task.redeemPoints;
     String dueDate = task.dueDate;
 
@@ -274,11 +585,22 @@ class _TasksPageState extends State<TasksPage> {
                         description = value;
                       },
                     ),
-                    TextField(
-                      decoration: InputDecoration(labelText: 'Assigned To'),
-                      controller: TextEditingController(text: assignedTo),
-                      onChanged: (value) {
-                        assignedTo = value;
+                    StreamBuilder<String>(
+                      stream: _resolveUserNameStream(assignedTo), // Resolve the user's name
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          String? userName = snapshot.data; // Use a nullable variable
+                          assignedTo = userName ?? ''; // If userName is null, assign an empty string
+                          return TextField(
+                            decoration: InputDecoration(labelText: 'Assigned To'),
+                            controller: TextEditingController(text: userName), // Set the name directly
+                            onChanged: (value) {
+                              assignedTo = value; // Update assignedTo with the name
+                            },
+                          );
+                        } else {
+                          return CircularProgressIndicator(); // Display a loading indicator while resolving the name
+                        }
                       },
                     ),
                     TextField(
@@ -296,13 +618,13 @@ class _TasksPageState extends State<TasksPage> {
                           onPressed: () async {
                             final selectedDate = await showDatePicker(
                               context: context,
-                              initialDate: DateFormat('yyyy-MM-dd').parse(dueDate),
+                              initialDate: DateFormat('dd-MM-yyyy').parse(dueDate),
                               firstDate: DateTime.now(),
                               lastDate: DateTime(2100),
                             );
                             if (selectedDate != null) {
                               setState(() {
-                                dueDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+                                dueDate = DateFormat('dd-MM-yyyy').format(selectedDate);
                               });
                             }
                           },
@@ -338,25 +660,38 @@ class _TasksPageState extends State<TasksPage> {
   }
 
   Future<void> _updateTask(String taskId, String description, String assignedTo, int redeemPoints, String dueDate) async {
+    String assignedToUid = await _resolveUserUID(assignedTo); // Resolve the UID from the name
+
     await FirebaseFirestore.instance.collection('tasks').doc(taskId).update({
       'description': description,
-      'assignedTo': assignedTo,
+      'assignedTo': assignedToUid, // Store the resolved UID
       'redeemPoints': redeemPoints,
       'dueDate': dueDate,
     });
+
     setState(() {
       final index = tasks.indexWhere((task) => task.id == taskId);
       if (index != -1) {
         tasks[index] = TaskModel(
           id: taskId,
           description: description,
-          assignedTo: assignedTo,
+          assignedTo: assignedTo, // Update assignedTo with the name
           redeemPoints: redeemPoints,
           dueDate: dueDate,
-          addedOn: tasks[index].addedOn, // Provide the existing addedOn value
+          addedOn: tasks[index].addedOn,
           completed: tasks[index].completed,
-          assignedBy: tasks[index].assignedBy, // Include assignedBy
+          assignedBy: tasks[index].assignedBy,
         );
+      }
+    });
+  }
+
+  Stream<String> _resolveUserNameStream(String uid) {
+    return FirebaseFirestore.instance.collection('users').doc(uid).snapshots().map((snapshot) {
+      if (snapshot.exists) {
+        return snapshot['name'];
+      } else {
+        return ''; // Return empty string if user document doesn't exist
       }
     });
   }
@@ -369,12 +704,15 @@ class _TasksPageState extends State<TasksPage> {
   }
 
   Future<void> _addTask(String description, String assignedTo, int redeemPoints, String dueDate) async {
-    String addedOn = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    String addedOn = DateFormat('dd-MM-yyyy').format(DateTime.now());
     String assignedBy = currentUser.uid; // Assuming currentUser is the parent's user document
 
-    await FirebaseFirestore.instance.collection('tasks').add({
+    // Resolve the UID based on the assignedTo string
+    String assignedToUid = await _resolveUserUID(assignedTo);
+
+    DocumentReference newTaskRef = await FirebaseFirestore.instance.collection('tasks').add({
       'description': description,
-      'assignedTo': assignedTo,
+      'assignedTo': assignedToUid, // Save the UID of the assigned user
       'assignedBy': assignedBy,
       'redeemPoints': redeemPoints,
       'dueDate': dueDate,
@@ -382,9 +720,11 @@ class _TasksPageState extends State<TasksPage> {
       'completed': false,
     });
 
+    String taskId = newTaskRef.id; // Retrieve the ID of the newly added document
+
     setState(() {
       tasks.add(TaskModel(
-        id: 'generated_id', // You can set the ID accordingly based on the generated ID from Firestore
+        id: taskId, // Use the retrieved ID
         description: description,
         assignedTo: assignedTo,
         redeemPoints: redeemPoints,
@@ -395,13 +735,29 @@ class _TasksPageState extends State<TasksPage> {
       ));
     });
   }
+
+// Function to resolve the UID based on the assignedTo string
+  Future<String> _resolveUserUID(String assignedTo) async {
+    String assignedToUid = '';
+    QuerySnapshot userSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('name', isEqualTo: assignedTo)
+        .limit(1)
+        .get();
+
+    if (userSnapshot.docs.isNotEmpty) {
+      assignedToUid = userSnapshot.docs.first.id;
+    }
+
+    return assignedToUid;
+  }
 }
 
 class TaskModel {
   final String id;
   final String description;
-  final String assignedTo;
-  final String assignedBy; // Add assignedBy parameter
+  final String assignedTo; // Include assignedTo for parent user type
+  final String assignedBy;
   final int redeemPoints;
   final String addedOn;
   final String dueDate;
@@ -411,7 +767,7 @@ class TaskModel {
     required this.id,
     required this.description,
     required this.assignedTo,
-    required this.assignedBy, // Add assignedBy parameter
+    required this.assignedBy,
     required this.redeemPoints,
     required this.addedOn,
     required this.dueDate,
@@ -423,7 +779,7 @@ class TaskModel {
       id: id,
       description: map['description'],
       assignedTo: map['assignedTo'],
-      assignedBy: assignedBy, // Assign value to assignedBy
+      assignedBy: assignedBy,
       redeemPoints: map['redeemPoints'],
       addedOn: map['addedOn'],
       dueDate: map['dueDate'],

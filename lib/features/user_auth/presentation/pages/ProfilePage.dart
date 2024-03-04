@@ -15,131 +15,166 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  late CustomUser _user;
-  TextEditingController _nameController = TextEditingController();
-  TextEditingController _ageController = TextEditingController();
-  TextEditingController _dobController = TextEditingController();
-  TextEditingController _mobileController = TextEditingController();
-  String _photoURL = '';
+late CustomUser _user;
+TextEditingController _nameController = TextEditingController();
+TextEditingController _ageController = TextEditingController();
+TextEditingController _dobController = TextEditingController();
+TextEditingController _mobileController = TextEditingController();
+String _photoURL = '';
+int _points = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    User user = FirebaseAuth.instance.currentUser!;
-    _user = CustomUser.fromUser(user);
+@override
+void initState() {
+  super.initState();
+  User user = FirebaseAuth.instance.currentUser!;
+  _user = CustomUser.fromUser(user);
 
-    FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get()
-        .then((DocumentSnapshot documentSnapshot) {
-      if (documentSnapshot.exists) {
-        Map<String, dynamic>? userData =
-        documentSnapshot.data() as Map<String, dynamic>?;
+  FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .get()
+      .then((DocumentSnapshot documentSnapshot) {
+    if (documentSnapshot.exists) {
+      Map<String, dynamic>? userData =
+      documentSnapshot.data() as Map<String, dynamic>?;
 
-        setState(() {
-          _photoURL = userData?['photoURL'] ?? '';
-          _nameController.text = _capitalize(userData?['name'] ?? '');
-          _dobController.text = userData?['dob'] ?? '';
-          _mobileController.text = userData?['mobile'] ?? '';
-          _ageController.text = _calculateAge(_dobController.text);
-          _user = CustomUser(
-            uid: _user.uid,
-            email: _user.email,
-            username: userData?['username'] ?? '', // Fetch username from Firestore
-            name: _user.name,
-            age: _user.age,
-            dob: _user.dob,
-            mobile: _user.mobile,
-          );
-        });
-      }
-    });
-  }
+      setState(() {
+        _photoURL = userData?['photoURL'] ?? '';
+        _nameController.text = _capitalize(userData?['name'] ?? '');
+        _dobController.text = userData?['dob'] ?? '';
+        _mobileController.text = userData?['mobile'] ?? '';
+        _ageController.text = _calculateAge(_dobController.text);
+        _user = CustomUser(
+          uid: _user.uid,
+          email: _user.email,
+          username: userData?['username'] ?? '',
+          name: _user.name,
+          age: _user.age,
+          dob: _user.dob,
+          mobile: _user.mobile,
+          userType: userData?['userType'], // Assign userType from Firestore data
+        );
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Profile'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditProfilePage(user: _user),
-                ),
-              );
-            },
-            icon: Icon(Icons.edit),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(height: 20),
-            GestureDetector(
-              onTap: _selectImage,
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 80,
-                    backgroundImage: _photoURL.isNotEmpty
-                        ? NetworkImage(_photoURL)
-                        : null,
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    _user.username, // Display username here
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Table(
-                border: TableBorder.all(),
-                children: [
-                  _buildTableRow('Name', _nameController.text),
-                  _buildTableRow('Email', _user.email),
-                  _buildTableRow('Mobile Number', _mobileController.text),
-                  _buildTableRow('Date of Birth', _dobController.text),
-                  _buildTableRow('Age', _ageController.text),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+        // Fetch points if the user is of type child
+        if (_user.userType == 'child') {
+          FirebaseFirestore.instance
+              .collection('points')
+              .doc(user.uid)
+              .get()
+              .then((DocumentSnapshot pointsSnapshot) {
+            if (pointsSnapshot.exists) {
+              Map<String, dynamic>? data = pointsSnapshot.data() as Map<String, dynamic>?;
 
-  TableRow _buildTableRow(String label, String value) {
-    return TableRow(
-      children: [
-        TableCell(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(label, style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ),
-        TableCell(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(value),
+              if (data != null) {
+                setState(() {
+                  _points = data['points'] ?? 0;
+                  print('Points: $_points');
+                });
+              }
+            }
+          });
+        }
+      });
+    }
+  });
+}
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text('Profile'),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 16.0),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _user.userType == 'child'
+                ? Text(
+              '$_points points',
+              style: TextStyle(fontSize: 16),
+            )
+                : SizedBox.shrink(),
           ),
         ),
       ],
-    );
-  }
+    ),
+    body: SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(height: 20),
+          GestureDetector(
+            onTap: _selectImage,
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 80,
+                  backgroundImage: _photoURL.isNotEmpty
+                      ? NetworkImage(_photoURL)
+                      : null,
+                ),
+                SizedBox(height: 10),
+                Text(
+                  _user.username,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Table(
+              border: TableBorder.all(),
+              children: [
+                _buildTableRow('Name', _nameController.text),
+                _buildTableRow('Email', _user.email),
+                _buildTableRow('Mobile Number', _mobileController.text),
+                _buildTableRow('Date of Birth', _dobController.text),
+                _buildTableRow('Age', _ageController.text),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+    floatingActionButton: FloatingActionButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditProfilePage(user: _user),
+          ),
+        );
+      },
+      child: Icon(Icons.edit),
+    ),
+    floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+  );
+}
+
+TableRow _buildTableRow(String label, String value) {
+  return TableRow(
+    children: [
+      TableCell(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Text(label, style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ),
+      TableCell(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Text(value),
+        ),
+      ),
+    ],
+  );
+}
 
   void _selectImage() async {
     final picker = ImagePicker();
@@ -215,6 +250,7 @@ class CustomUser {
   final String? age;
   final String? dob;
   final String? mobile;
+  final String? userType; // Add userType field
 
   CustomUser({
     required this.uid,
@@ -224,6 +260,7 @@ class CustomUser {
     this.age,
     this.dob,
     this.mobile,
+    this.userType,
   });
 
   factory CustomUser.fromUser(User user) {
