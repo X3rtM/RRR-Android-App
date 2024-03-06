@@ -171,7 +171,7 @@ class _TasksPageState extends State<TasksPage> {
             stream: FirebaseFirestore.instance.collection('tasks').snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return CircularProgressIndicator();
+                return Container();
               }
               List<TaskModel> tasksList = tasks;
               if (snapshot.hasData) {
@@ -251,7 +251,7 @@ class _TasksPageState extends State<TasksPage> {
             stream: FirebaseFirestore.instance.collection('tasks').snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return CircularProgressIndicator();
+                return Container();
               }
               List<TaskModel> tasksList = tasks;
               if (snapshot.hasData) {
@@ -326,7 +326,7 @@ class _TasksPageState extends State<TasksPage> {
         filterTasks(filtered);
       },
       decoration: InputDecoration(
-        hintText: isParent ? 'Search by description or assignedTo' : 'Search by description',
+        hintText: isParent ? 'Search by description or name' : 'Search by description',
         border: OutlineInputBorder(),
       ),
     );
