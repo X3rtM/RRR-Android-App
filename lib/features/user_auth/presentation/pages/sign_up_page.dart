@@ -42,10 +42,9 @@ class _SignUpPageState extends State<SignUpPage> {
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Colors.blue, Colors.pinkAccent, Colors.pinkAccent, Colors.blue],
+          image: DecorationImage(
+            image: AssetImage("img/login_bckgnd.jpg"),
+            fit: BoxFit.cover,
           ),
         ),
         child: Center(

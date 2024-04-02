@@ -97,65 +97,77 @@ Widget build(BuildContext context) {
                 : SizedBox.shrink(),
           ),
         ),
+        IconButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EditProfilePage(user: _user),
+              ),
+            );
+          },
+          icon: Icon(Icons.edit),
+        ),
       ],
     ),
-    body: SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(height: 20),
-          GestureDetector(
-            onTap: _selectImage,
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 80,
-                  backgroundImage: _photoURL.isNotEmpty
-                      ? NetworkImage(_photoURL)
-                      : null,
-                ),
-                SizedBox(height: 10),
-                Text(
-                  _user.username,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+    body: Container(
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('img/profile.jpg'),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(height: 20),
+            GestureDetector(
+              onTap: _selectImage,
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 80,
+                    backgroundImage: _photoURL.isNotEmpty
+                        ? NetworkImage(_photoURL)
+                        : null,
                   ),
-                ),
-              ],
+                  SizedBox(height: 10),
+                  Text(
+                    _user.username,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Table(
-              border: TableBorder.all(),
-              children: [
-                _buildTableRow('Name', _nameController.text),
-                _buildTableRow('Email', _user.email),
-                _buildTableRow('Mobile Number', _mobileController.text),
-                _buildTableRow('Date of Birth', _dobController.text),
-                _buildTableRow('Age', _ageController.text),
-              ],
+            SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Table(
+                border: TableBorder.all(),
+                children: [
+                  _buildTableRow('Name', _nameController.text),
+                  _buildTableRow('Email', _user.email),
+                  _buildTableRow('Mobile Number', _mobileController.text),
+                  _buildTableRow('Date of Birth', _dobController.text),
+                  _buildTableRow('Age', _ageController.text),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
-    floatingActionButton: FloatingActionButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => EditProfilePage(user: _user),
-          ),
-        );
-      },
-      child: Icon(Icons.edit),
-    ),
-    floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
   );
 }
+
+
+
+
+
 
 TableRow _buildTableRow(String label, String value) {
   return TableRow(

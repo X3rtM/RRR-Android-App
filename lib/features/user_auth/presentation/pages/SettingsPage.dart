@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'login_page.dart'; // Import your login page file
 
 class SettingsPage extends StatelessWidget {
   @override
@@ -46,7 +47,11 @@ class SettingsPage extends StatelessWidget {
           ListTile(
             title: Text('Logout'),
             onTap: () {
-              // Implement logout logic
+              // Navigate to login page
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => LoginPage()),
+              );
             },
           ),
         ],

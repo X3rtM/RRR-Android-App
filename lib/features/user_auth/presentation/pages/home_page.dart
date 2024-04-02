@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../firebase_auth_implementation/firebase_auth_services.dart';
 import 'TasksPage.dart';
 import 'RewardsPage.dart';
 import 'RedeemPage.dart';
@@ -31,9 +29,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-  int _previousIndex = 0;
 
   final List<Widget> _pages = [
+    HomePageContent(),
     TasksPage(),
     RewardsPage(),
     RedeemPage(),
@@ -43,10 +41,7 @@ class _HomePageState extends State<HomePage> {
 
   void _onItemTapped(int index) {
     setState(() {
-      _previousIndex = _selectedIndex;
-      if (_selectedIndex != index) {
-        _selectedIndex = index;
-      }
+      _selectedIndex = index;
     });
   }
 
@@ -56,6 +51,10 @@ class _HomePageState extends State<HomePage> {
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment),
             label: 'Tasks',
@@ -80,12 +79,50 @@ class _HomePageState extends State<HomePage> {
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.lightBlue,
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed, // To fix the animation
-        selectedFontSize: 16, // Font size for the selected tab
-        unselectedFontSize: 14, // Font size for the unselected tabs
-        selectedIconTheme: IconThemeData(size: 28), // Icon size for selected tab
-        unselectedIconTheme: IconThemeData(size: 24), // Icon size for unselected tabs
+        type: BottomNavigationBarType.fixed,
+        selectedFontSize: 16,
+        unselectedFontSize: 14,
+        selectedIconTheme: IconThemeData(size: 28),
+        unselectedIconTheme: IconThemeData(size: 24),
       ),
     );
   }
 }
+
+class HomePageContent extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('img/homepage.jpg'), // Adjust path as per your image location
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20.0),
+              child: Text(
+                'Result Reward Redemption System',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Text(
+              '“The way to get started is to quit talking and begin doing.” - Walt Disney',
+              style: TextStyle(fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+

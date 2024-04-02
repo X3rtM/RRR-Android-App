@@ -115,7 +115,15 @@ class _TasksPageState extends State<TasksPage> {
       appBar: AppBar(
         title: Text('Tasks'),
       ),
-      body: userType == 'child' ? _buildChildTasks() : _buildParentTasks(),
+    body: Container(
+    decoration: BoxDecoration(
+    image: DecorationImage(
+    image: AssetImage('img/task.jpg'),
+    fit: BoxFit.cover,
+    ),
+    ),
+      child: userType == 'child' ? _buildChildTasks() : _buildParentTasks(),
+    )
     );
   }
 
