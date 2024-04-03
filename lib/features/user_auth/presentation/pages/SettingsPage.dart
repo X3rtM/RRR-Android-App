@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 void main() {
   runApp(MyApp());
@@ -12,6 +13,17 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _firebaseMessaging.requestPermission();
+    _firebaseMessaging.getToken().then((token) {
+      print('FCM Token: $token');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -55,6 +67,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _darkModeEnabled = false;
   String _selectedLanguage = 'English';
   bool _enableNotifications = true;
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +84,11 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: (bool value) {
                 setState(() {
                   _enableNotifications = value;
+                  if (value) {
+                    _firebaseMessaging.subscribeToTopic('tasks');
+                  } else {
+                    _firebaseMessaging.unsubscribeFromTopic('tasks');
+                  }
                 });
               },
             ),

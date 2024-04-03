@@ -126,7 +126,7 @@ class _SplashScreenState extends State<SplashScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Lottie.asset(
-                  "assets/animations/Animation - 1709532387249.json",
+                  "assets/animations/animation_1709532387249.json",
                   width: 300,
                   height: 300,
                   fit: BoxFit.cover,
