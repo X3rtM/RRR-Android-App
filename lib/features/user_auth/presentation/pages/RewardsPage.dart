@@ -129,12 +129,28 @@ class _RewardsPageState extends State<RewardsPage> {
                 fontSize: 16.0,
               ),
             ),
-            if (reward.assignedTo != null) // Check if assignedTo is not null
-              Text(
-                'Assigned To: ${reward.assignedTo}',
-                style: TextStyle(
-                  fontSize: 16.0,
-                ),
+            if (userType == 'parent' && reward.assignedTo != null) // Only display when userType is 'parent' and assignedTo is not null
+              FutureBuilder<String?>(
+                future: _getUserNameByUID(reward.assignedTo!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircularProgressIndicator();
+                  }
+                  if (snapshot.hasData && snapshot.data != null) {
+                    return Text(
+                      'Assigned To: ${snapshot.data}',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                      ),
+                    );
+                  }
+                  return Text(
+                    'Assigned To: Unknown',
+                    style: TextStyle(
+                      fontSize: 16.0,
+                    ),
+                  );
+                },
               ),
             if (reward.dateUpTo != null) // Check if dateUpTo is not null
               Text(
@@ -155,6 +171,20 @@ class _RewardsPageState extends State<RewardsPage> {
             : null,
       ),
     );
+  }
+
+  Future<String?> _getUserNameByUID(String uid) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        return userDoc['name'];
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching user name: $e');
+      return null;
+    }
   }
 
   Widget _buildAddRewardButton() {
@@ -207,7 +237,7 @@ class _RewardsPageState extends State<RewardsPage> {
                 TextField(
                   controller: dateController,
                   readOnly: true,
-                  decoration: InputDecoration(labelText: 'Date Up To (dd/MM/yyyy)'),
+                  decoration: InputDecoration(labelText: 'Expiry (dd/MM/yyyy)'),
                   onTap: () {
                     _selectDate(context).then((value) {
                       dateController.text = DateFormat('dd/MM/yyyy').format(value!);

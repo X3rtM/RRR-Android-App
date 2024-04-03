@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'TasksPage.dart';
 import 'RewardsPage.dart';
 import 'RedeemPage.dart';
 import 'ProfilePage.dart';
 import 'SettingsPage.dart';
+import 'ValidationPage.dart';
 
 void main() {
   runApp(MyApp());
@@ -29,8 +32,19 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  late String userType;
+  late User currentUser;
 
-  final List<Widget> _pages = [
+  final List<Widget> _pagesParent = [
+    HomePageContent(),
+    TasksPage(),
+    RewardsPage(),
+    ValidationPage(),
+    ProfilePage(),
+    SettingsPage(),
+  ];
+
+  final List<Widget> _pagesChild = [
     HomePageContent(),
     TasksPage(),
     RewardsPage(),
@@ -39,16 +53,35 @@ class _HomePageState extends State<HomePage> {
     SettingsPage(),
   ];
 
-  void _onItemTapped(int index) {
+  @override
+  void initState() {
+    super.initState();
+    currentUser = FirebaseAuth.instance.currentUser!;
+    _getUserType(currentUser.uid);
+  }
+
+  Future<void> _getUserType(String userId) async {
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
     setState(() {
-      _selectedIndex = index;
+      userType = userDoc['userType'];
+      _selectedIndex = userType == 'parent' ? 0 : 3; // Set the initial index based on userType
     });
+  }
+
+  void _onItemTapped(int index) {
+    if (userType == 'parent' || (userType == 'child' && index != 3)) { // Parent can navigate to ValidationPage, child cannot
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    List<Widget> pages = userType == 'parent' ? _pagesParent : _pagesChild;
+
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -64,8 +97,8 @@ class _HomePageState extends State<HomePage> {
             label: 'Rewards',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.redeem),
-            label: 'Redeem',
+            icon: Icon(userType == 'parent' ? Icons.assignment : Icons.redeem),
+            label: userType == 'parent' ? 'Validation' : 'Redeem',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
@@ -88,6 +121,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
 
 class HomePageContent extends StatelessWidget {
   @override
@@ -125,4 +159,3 @@ class HomePageContent extends StatelessWidget {
     );
   }
 }
-

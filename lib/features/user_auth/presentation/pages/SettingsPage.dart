@@ -1,7 +1,61 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart'; // Import your login page file
 
-class SettingsPage extends StatelessWidget {
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatefulWidget {
+  static ThemeMode currentThemeMode = ThemeMode.light;
+
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'My App',
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
+      themeMode: MyApp.currentThemeMode,
+      home: LoginPage(),
+    );
+  }
+}
+
+class LoginPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Login'),
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => SettingsPage()),
+            );
+          },
+          child: Text('Login'),
+        ),
+      ),
+    );
+  }
+}
+
+class SettingsPage extends StatefulWidget {
+  @override
+  _SettingsPageState createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  bool _darkModeEnabled = false;
+  String _selectedLanguage = 'English';
+  bool _enableNotifications = true;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -13,29 +67,36 @@ class SettingsPage extends StatelessWidget {
           ListTile(
             title: Text('Notifications'),
             trailing: Switch(
-              value: true, // Change to a bool variable to control the state of the switch
+              value: _enableNotifications,
               onChanged: (bool value) {
-                // Implement logic to handle notifications
+                setState(() {
+                  _enableNotifications = value;
+                });
               },
             ),
           ),
           ListTile(
             title: Text('Dark Mode'),
             trailing: Switch(
-              value: false, // Change to a bool variable to control the state of the switch
+              value: _darkModeEnabled,
               onChanged: (bool value) {
-                // Implement logic to toggle dark mode
+                setState(() {
+                  _darkModeEnabled = value;
+                  _toggleDarkMode(value);
+                });
               },
             ),
           ),
           ListTile(
             title: Text('Language'),
             trailing: DropdownButton<String>(
-              value: 'English',
+              value: _selectedLanguage,
               onChanged: (String? newValue) {
-                // Implement logic to change the app language
+                setState(() {
+                  _selectedLanguage = newValue!;
+                });
               },
-              items: <String>['English', 'Spanish', 'French'] // Add supported languages here
+              items: <String>['English', 'Spanish', 'French']
                   .map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
@@ -47,7 +108,6 @@ class SettingsPage extends StatelessWidget {
           ListTile(
             title: Text('Logout'),
             onTap: () {
-              // Navigate to login page
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => LoginPage()),
@@ -57,5 +117,17 @@ class SettingsPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _toggleDarkMode(bool enabled) {
+    if (enabled) {
+      setState(() {
+        MyApp.currentThemeMode = ThemeMode.dark;
+      });
+    } else {
+      setState(() {
+        MyApp.currentThemeMode = ThemeMode.light;
+      });
+    }
   }
 }

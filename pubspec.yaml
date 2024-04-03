@@ -48,6 +48,9 @@ dependencies:
   sign_in_button: ^3.2.0
   shared_preferences: ^2.2.2
   lottie: ^3.1.0
+  file_picker: ^4.0.0
+  flutter_pdfview: ^1.0.5
+
 
 dev_dependencies:
   flutter_test:
