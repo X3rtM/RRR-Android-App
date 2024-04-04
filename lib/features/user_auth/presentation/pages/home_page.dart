@@ -32,7 +32,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-  late String userType;
+  late String userType = ''; // Provide a default value
   late User currentUser;
 
   final List<Widget> _pagesParent = [
@@ -63,17 +63,15 @@ class _HomePageState extends State<HomePage> {
   Future<void> _getUserType(String userId) async {
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
     setState(() {
-      userType = userDoc['userType'];
-      _selectedIndex = userType == 'parent' ? 0 : 3; // Set the initial index based on userType
+      userType = userDoc['userType'] ?? ''; // Ensure userType is initialized
+      _selectedIndex = 0;
     });
   }
 
   void _onItemTapped(int index) {
-    if (userType == 'parent' || (userType == 'child' && index != 3)) { // Parent can navigate to ValidationPage, child cannot
-      setState(() {
+    setState(() {
         _selectedIndex = index;
-      });
-    }
+    });
   }
 
   @override
@@ -121,7 +119,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
 
 class HomePageContent extends StatelessWidget {
   @override

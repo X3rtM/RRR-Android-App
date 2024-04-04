@@ -15,6 +15,14 @@ enum SortBy {
   Points,
 }
 
+DateTime _parseDate(String dateString) {
+  List<String> dateParts = dateString.split('-');
+  int year = int.parse(dateParts[2]);
+  int month = int.parse(dateParts[1]);
+  int day = int.parse(dateParts[0]);
+  return DateTime(year, month, day);
+}
+
 class _TasksPageState extends State<TasksPage> {
   late User currentUser;
   String userType = '';
@@ -22,12 +30,20 @@ class _TasksPageState extends State<TasksPage> {
   SortBy sortBy = SortBy.Name;
   String _searchText = '';
   final TextEditingController _searchController = TextEditingController();
+  bool _isMounted = false;
 
   @override
   void initState() {
     super.initState();
     currentUser = FirebaseAuth.instance.currentUser!;
+    _isMounted=true;
     _getUserType(currentUser.uid);
+  }
+
+  @override
+  void dispose() {
+    _isMounted = false; // Set flag to false when disposed
+    super.dispose();
   }
 
   Future<void> _getUserType(String userId) async {
@@ -49,64 +65,86 @@ class _TasksPageState extends State<TasksPage> {
           .where(userType == 'parent' ? 'assignedBy' : 'assignedTo', isEqualTo: userId)
           .get();
 
-      final Set<String> taskIds = {}; // Set to store unique task IDs
-      final List<TaskModel> allTasks = [];
-
-      querySnapshot.docs.forEach((doc) {
-        final taskId = doc.id;
-        if (!taskIds.contains(taskId)) {
-          final task = TaskModel.fromMap(
-              taskId, doc.data(), assignedBy: doc['assignedBy']);
-          allTasks.add(task);
-          taskIds.add(taskId);
-        }
-      });
-
-      // Fetching names of assigned users
-      final List<String> assignedUserIds = allTasks.map((task) => task.assignedTo).toList();
-      final Map<String, String> userNames = {};
-
-      // Fetching user names from Firestore
-      await Future.forEach(assignedUserIds, (userId) async {
-        final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-        final userName = userDoc['name'];
-        userNames[userId] = userName;
-      });
+      final List<TaskModel> allTasks = querySnapshot.docs.map((doc) {
+        return TaskModel.fromMap(
+          doc.id,
+          doc.data(),
+          assignedBy: doc['assignedBy'],
+        );
+      }).toList();
 
       // Sorting tasks by user names
-      allTasks.sort((task1, task2) {
-        final name1 = userNames[task1.assignedTo] ?? '';
-        final name2 = userNames[task2.assignedTo] ?? '';
-        return name1.compareTo(name2);
-      });
+      if (_isMounted) {
+        allTasks.sort((task1, task2) {
+          switch (sortBy) {
+            case SortBy.Name:
+              return task1.assignedTo.toLowerCase().compareTo(
+                  task2.assignedTo.toLowerCase());
+            case SortBy.DueDate:
+              return task1.dueDate.compareTo(task2.dueDate);
+            case SortBy.AssignedOn:
+              return task1.addedOn.compareTo(task2.addedOn);
+            case SortBy.Points:
+              return task1.redeemPoints.compareTo(task2.redeemPoints);
+          }
+        });
 
-      setState(() {
-        tasks = allTasks;
-      });
+        if (_isMounted) {
+          setState(() {
+            tasks = allTasks;
+          });
+        }
+      }
     } catch (e) {
-      print('Error fetching tasks: $e');
+      if(_isMounted) {
+        print('Error fetching tasks: $e');
+      }
     }
   }
 
   Future<void> _fetchChildTasks(String uid) async {
-    final querySnapshot = await FirebaseFirestore.instance.collection('tasks').where('assignedTo', isEqualTo: uid).get();
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('tasks')
+          .where('assignedTo', isEqualTo: uid)
+          .get();
 
-    final allTasks = querySnapshot.docs.map((doc) {
-      return TaskModel.fromMap(doc.id, doc.data(), assignedBy: '');
-    }).toList();
+      final List<TaskModel> allTasks = querySnapshot.docs.map((doc) {
+        return TaskModel.fromMap(doc.id, doc.data(), assignedBy: '');
+      }).toList();
 
-    // Fetch tasks assigned by parent to the child
-    final parentTasksSnapshot = await FirebaseFirestore.instance.collection('tasks').where('assignedBy', isEqualTo: uid).get();
+      if (_isMounted) {
+        if (_searchText.isNotEmpty) {
+          // Filter tasks based on search text
+          allTasks.retainWhere((task) =>
+              task.description.toLowerCase().contains(_searchText.toLowerCase()));
+        }
 
-    final parentTasks = parentTasksSnapshot.docs.map((doc) {
-      return TaskModel.fromMap(doc.id, doc.data(), assignedBy: doc['assignedBy']);
-    }).toList();
+        // Sort tasks based on selected criteria
+        allTasks.sort((task1, task2) {
+          switch (sortBy) {
+            case SortBy.Name:
+              return task1.description.toLowerCase().compareTo(task2.description.toLowerCase());
+            case SortBy.DueDate:
+              return _parseDate(task1.dueDate).compareTo(_parseDate(task2.dueDate));
+            case SortBy.AssignedOn:
+              return _parseDate(task1.addedOn).compareTo(_parseDate(task2.addedOn));
+            case SortBy.Points:
+              return task1.redeemPoints.compareTo(task2.redeemPoints);
+            default:
+              return 0;
+          }
+        });
 
-    allTasks.addAll(parentTasks); // Add parent-assigned tasks to the list
-
-    setState(() {
-      tasks = allTasks;
-    });
+        setState(() {
+          tasks = allTasks;
+        });
+      }
+    } catch (e) {
+      if (_isMounted) {
+        print('Error fetching child tasks: $e');
+      }
+    }
   }
 
   @override
@@ -115,15 +153,15 @@ class _TasksPageState extends State<TasksPage> {
       appBar: AppBar(
         title: Text('Tasks'),
       ),
-    body: Container(
-    decoration: BoxDecoration(
-    image: DecorationImage(
-    image: AssetImage('img/task.jpg'),
-    fit: BoxFit.cover,
-    ),
-    ),
-      child: userType == 'child' ? _buildChildTasks() : _buildParentTasks(),
-    )
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('img/task.jpg'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: userType == 'child' ? _buildChildTasks() : _buildParentTasks(),
+      ),
     );
   }
 
@@ -187,20 +225,23 @@ class _TasksPageState extends State<TasksPage> {
                   return task.description.toLowerCase().contains(_searchText.toLowerCase()) ||
                       task.assignedTo.toLowerCase().contains(_searchText.toLowerCase());
                 }).toList();
-                switch (sortBy) {
-                  case SortBy.DueDate:
-                    tasksList.sort((a, b) => a.dueDate.compareTo(b.dueDate));
-                    break;
-                  case SortBy.AssignedOn:
-                    tasksList.sort((a, b) => a.addedOn.compareTo(b.addedOn));
-                    break;
-                  case SortBy.Name:
-                    tasksList.sort((a, b) => a.assignedTo.toLowerCase().compareTo(b.assignedTo.toLowerCase()));
-                    break;
-                  default:
-                    break;
-                }
+
+                tasksList.sort((a, b) {
+                  switch (sortBy) {
+                    case SortBy.Name:
+                      return a.assignedTo.toLowerCase().compareTo(b.assignedTo.toLowerCase());
+                    case SortBy.DueDate:
+                      return _parseDate(b.dueDate).compareTo(_parseDate(a.dueDate)); // Sort in descending order
+                    case SortBy.AssignedOn:
+                      return _parseDate(b.addedOn).compareTo(_parseDate(a.addedOn)); // Sort in descending order
+                    case SortBy.Points:
+                      return a.redeemPoints.compareTo(b.redeemPoints);
+                    default:
+                      return 0; // Default case
+                  }
+                });
               }
+
               return ListView.builder(
                 itemCount: tasksList.length,
                 itemBuilder: (context, index) {
