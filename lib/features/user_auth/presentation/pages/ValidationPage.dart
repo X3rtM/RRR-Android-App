@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'TasksPage.dart'; // Import your TaskModel class here
+import 'TasksPage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ValidationPage extends StatefulWidget {
@@ -24,7 +24,7 @@ class _ValidationPageState extends State<ValidationPage> {
         final querySnapshot = await FirebaseFirestore.instance
             .collection('tasks')
             .where('assignedBy', isEqualTo: currentUser.uid)
-            .where('status', isEqualTo: 'CompletedByChild')
+            .where('status', isEqualTo: 'MarkedByChild') // Filter by completed tasks
             .get();
 
         setState(() {
@@ -32,7 +32,7 @@ class _ValidationPageState extends State<ValidationPage> {
               .map((doc) => TaskModel.fromMap(
             doc.id,
             doc.data(),
-            assignedBy: doc['assignedBy'], // Provide assignedBy parameter
+            assignedBy: doc['assignedBy'],
           ))
               .toList();
         });
@@ -68,17 +68,34 @@ class _ValidationPageState extends State<ValidationPage> {
     );
   }
 
-  Future<void> _completeTask(TaskModel task) async {
+  _completeTask(TaskModel task) async {
     try {
       await FirebaseFirestore.instance.collection('tasks').doc(task.id).update({
-        'status': 'CompletedByParent',
+        'status': 'MarkedByParent',
       });
       final taskDoc = await FirebaseFirestore.instance.collection('tasks').doc(task.id).get();
       final redeemPoints = taskDoc['redeemPoints'];
+      final userId = task.assignedTo; // Get userId from task
       print('Redeem Points: $redeemPoints');
+      _updateUserPoints(redeemPoints, userId); // Pass userId
       _fetchTasksForValidation();
     } catch (e) {
       print('Error completing task: $e');
+    }
+  }
+
+  Future<void> _updateUserPoints(int redeemPoints, String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final userData = userDoc.data();
+      if (userData != null && userData['userType'] == 'child') {
+        final currentPoints = userData['cur_points'] ?? 0;
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'cur_points': currentPoints + redeemPoints, // Increment user points
+        });
+      }
+    } catch (e) {
+      print('Error updating user points: $e');
     }
   }
 }

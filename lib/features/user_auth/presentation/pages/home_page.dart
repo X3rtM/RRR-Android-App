@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'TasksPage.dart';
-import 'RewardsPage.dart';
-import 'RedeemPage.dart';
 import 'ProfilePage.dart';
 import 'SettingsPage.dart';
 import 'ValidationPage.dart';
+import 'RewardsPage.dart';
+import 'RedeemPage.dart';
 
 void main() {
   runApp(MyApp());
@@ -47,7 +47,6 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pagesChild = [
     HomePageContent(),
     TasksPage(),
-    RewardsPage(),
     RedeemPage(),
     ProfilePage(),
     SettingsPage(),
@@ -70,7 +69,7 @@ class _HomePageState extends State<HomePage> {
 
   void _onItemTapped(int index) {
     setState(() {
-        _selectedIndex = index;
+      _selectedIndex = index;
     });
   }
 
@@ -90,13 +89,14 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.assignment),
             label: 'Tasks',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.card_giftcard),
-            label: 'Rewards',
-          ),
+          if (userType == 'parent')
+            BottomNavigationBarItem(
+              icon: Icon(Icons.card_giftcard),
+              label: 'Rewards',
+            ),
           BottomNavigationBarItem(
             icon: Icon(userType == 'parent' ? Icons.assignment : Icons.redeem),
-            label: userType == 'parent' ? 'Validation' : 'Redeem',
+            label: userType == 'parent' ? 'Validation' : 'Rewards',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

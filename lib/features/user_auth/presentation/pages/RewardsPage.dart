@@ -133,9 +133,6 @@ class _RewardsPageState extends State<RewardsPage> {
               FutureBuilder<String?>(
                 future: _getUserNameByUID(reward.assignedTo!),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return CircularProgressIndicator();
-                  }
                   if (snapshot.hasData && snapshot.data != null) {
                     return Text(
                       'Assigned To: ${snapshot.data}',

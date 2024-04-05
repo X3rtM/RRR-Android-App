@@ -36,7 +36,7 @@ class _TasksPageState extends State<TasksPage> {
   void initState() {
     super.initState();
     currentUser = FirebaseAuth.instance.currentUser!;
-    _isMounted=true;
+    _isMounted = true;
     _getUserType(currentUser.uid);
   }
 
@@ -47,7 +47,8 @@ class _TasksPageState extends State<TasksPage> {
   }
 
   Future<void> _getUserType(String userId) async {
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final userDoc =
+    await FirebaseFirestore.instance.collection('users').doc(userId).get();
     setState(() {
       userType = userDoc['userType'];
       if (userType == 'parent') {
@@ -62,7 +63,8 @@ class _TasksPageState extends State<TasksPage> {
     try {
       final querySnapshot = await FirebaseFirestore.instance
           .collection('tasks')
-          .where(userType == 'parent' ? 'assignedBy' : 'assignedTo', isEqualTo: userId)
+          .where(userType == 'parent' ? 'assignedBy' : 'assignedTo',
+          isEqualTo: userId)
           .get();
 
       final List<TaskModel> allTasks = querySnapshot.docs.map((doc) {
@@ -78,8 +80,9 @@ class _TasksPageState extends State<TasksPage> {
         allTasks.sort((task1, task2) {
           switch (sortBy) {
             case SortBy.Name:
-              return task1.assignedTo.toLowerCase().compareTo(
-                  task2.assignedTo.toLowerCase());
+              return task1.assignedTo
+                  .toLowerCase()
+                  .compareTo(task2.assignedTo.toLowerCase());
             case SortBy.DueDate:
               return task1.dueDate.compareTo(task2.dueDate);
             case SortBy.AssignedOn:
@@ -96,7 +99,7 @@ class _TasksPageState extends State<TasksPage> {
         }
       }
     } catch (e) {
-      if(_isMounted) {
+      if (_isMounted) {
         print('Error fetching tasks: $e');
       }
     }
@@ -115,7 +118,6 @@ class _TasksPageState extends State<TasksPage> {
 
       if (_isMounted) {
         if (_searchText.isNotEmpty) {
-          // Filter tasks based on search text
           allTasks.retainWhere((task) =>
               task.description.toLowerCase().contains(_searchText.toLowerCase()));
         }
@@ -124,11 +126,15 @@ class _TasksPageState extends State<TasksPage> {
         allTasks.sort((task1, task2) {
           switch (sortBy) {
             case SortBy.Name:
-              return task1.description.toLowerCase().compareTo(task2.description.toLowerCase());
+              return task1.description
+                  .toLowerCase()
+                  .compareTo(task2.description.toLowerCase());
             case SortBy.DueDate:
-              return _parseDate(task1.dueDate).compareTo(_parseDate(task2.dueDate));
+              return _parseDate(task1.dueDate)
+                  .compareTo(_parseDate(task2.dueDate));
             case SortBy.AssignedOn:
-              return _parseDate(task1.addedOn).compareTo(_parseDate(task2.addedOn));
+              return _parseDate(task1.addedOn)
+                  .compareTo(_parseDate(task2.addedOn));
             case SortBy.Points:
               return task1.redeemPoints.compareTo(task2.redeemPoints);
             default:
@@ -351,7 +357,6 @@ class _TasksPageState extends State<TasksPage> {
         filteredTasks.sort((task1, task2) => task1.assignedTo.toLowerCase().compareTo(task2.assignedTo.toLowerCase()));
         break;
       default:
-      // Default sorting behavior, no need to sort here
         break;
     }
     return filteredTasks;
@@ -404,8 +409,26 @@ class _TasksPageState extends State<TasksPage> {
   }
 
   Widget _buildTaskItem(TaskModel task) {
-    Color statusColor = task.completed ? Colors.green : Colors.red;
-    String statusText = task.completed ? 'Completed' : 'Not Completed';
+    Color statusColor;
+    String statusText;
+    switch (task.status) {
+      case 'Incomplete':
+        statusColor = Colors.red;
+        statusText = 'Incomplete';
+        break;
+      case 'MarkedByParent':
+        statusColor = Colors.green;
+        statusText = 'Marked by Parent';
+        break;
+      case 'MarkedByChild':
+        statusColor = Colors.blue;
+        statusText = 'Marked by Child';
+        break;
+      default:
+        statusColor = Colors.red;
+        statusText = 'Incomplete';
+        break;
+    }
 
     return Card(
       margin: EdgeInsets.all(8),
@@ -468,7 +491,7 @@ class _TasksPageState extends State<TasksPage> {
                       ],
                     ),
                   ),
-                if (userType == 'child')
+                if (userType == 'child' && task.status == 'Incomplete') // Show edit button only for child user and if the task status is Incomplete
                   Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -477,7 +500,7 @@ class _TasksPageState extends State<TasksPage> {
                         child: IconButton(
                           icon: Icon(Icons.edit),
                           onPressed: () {
-                            _updateTaskStatus(task);
+                            _updateTaskStatus(task, 'MarkedByChild'); // Update task status to MarkedByChild
                           },
                         ),
                       ),
@@ -512,15 +535,14 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
-  void _updateTaskStatus(TaskModel task) {
+  void _updateTaskStatus(TaskModel task, String updatedStatus) {
     String taskId = task.id;
-    bool newStatus = !task.completed;
 
     FirebaseFirestore.instance.collection('tasks').doc(taskId).update({
-      'completed': newStatus,
+      'status': updatedStatus,
     }).then((_) {
       setState(() {
-        task.completed = newStatus;
+        task.status = updatedStatus;
       });
       print('Task status updated successfully');
     }).catchError((error) {
@@ -678,7 +700,7 @@ class _TasksPageState extends State<TasksPage> {
                             }
                           },
                           child: Text(
-                            dueDate.isEmpty ? 'Select Due Date' : dueDate,
+                            dueDate,
                           ),
                         ),
                       ],
@@ -708,84 +730,61 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
-  Future<void> _updateTask(String taskId, String description, String assignedTo, int redeemPoints, String dueDate) async {
-    String assignedToUid = await _resolveUserUID(assignedTo); // Resolve the UID from the name
-
-    await FirebaseFirestore.instance.collection('tasks').doc(taskId).update({
-      'description': description,
-      'assignedTo': assignedToUid, // Store the resolved UID
-      'redeemPoints': redeemPoints,
-      'dueDate': dueDate,
-    });
-
-    setState(() {
-      final index = tasks.indexWhere((task) => task.id == taskId);
-      if (index != -1) {
-        tasks[index] = TaskModel(
-          id: taskId,
-          description: description,
-          assignedTo: assignedTo, // Update assignedTo with the name
-          redeemPoints: redeemPoints,
-          dueDate: dueDate,
-          addedOn: tasks[index].addedOn,
-          completed: tasks[index].completed,
-          assignedBy: tasks[index].assignedBy,
-        );
-      }
-    });
+  Future<String> _resolveUserName(String userId) async {
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    if (userDoc.exists) {
+      return userDoc['name'];
+    } else {
+      return '';
+    }
   }
 
-  Stream<String> _resolveUserNameStream(String uid) {
-    return FirebaseFirestore.instance.collection('users').doc(uid).snapshots().map((snapshot) {
+  Stream<String> _resolveUserNameStream(String userId) {
+    return FirebaseFirestore.instance.collection('users').doc(userId).snapshots().map((snapshot) {
       if (snapshot.exists) {
         return snapshot['name'];
       } else {
-        return ''; // Return empty string if user document doesn't exist
+        return '';
       }
     });
   }
 
-  Future<void> _removeTask(TaskModel task) async {
-    await FirebaseFirestore.instance.collection('tasks').doc(task.id).delete();
-    setState(() {
-      tasks.remove(task);
-    });
+  void _addTask(String description, String assignedToName, int redeemPoints, String dueDate) async {
+    String assignedBy = FirebaseAuth.instance.currentUser!.uid;
+    String assignedToUid = await _resolveUserUID(assignedToName); // Resolve UID from name
+
+    try {
+      DocumentReference newTaskRef = await FirebaseFirestore.instance.collection('tasks').add({
+        'description': description,
+        'assignedTo': assignedToUid, // Save UID instead of name
+        'redeemPoints': redeemPoints,
+        'dueDate': dueDate,
+        'addedOn': DateFormat('dd-MM-yyyy').format(DateTime.now()),
+        'status': "Incomplete",
+        'assignedBy': assignedBy,
+      });
+
+      String taskId = newTaskRef.id;
+      setState(() {
+        tasks.add(TaskModel(
+          id: taskId,
+          description: description,
+          assignedTo: assignedToUid, // Save UID instead of name
+          redeemPoints: redeemPoints,
+          dueDate: dueDate,
+          addedOn: DateFormat('dd-MM-yyyy').format(DateTime.now()), // This line was missing in your original code
+          assignedBy: assignedBy,
+          status: "Incomplete",
+        ));
+      });
+
+      print('Task added successfully');
+      _fetchTasks('parent', assignedBy);
+    } catch (error) {
+      print('Error adding task: $error');
+    }
   }
 
-  Future<void> _addTask(String description, String assignedTo, int redeemPoints, String dueDate) async {
-    String addedOn = DateFormat('dd-MM-yyyy').format(DateTime.now());
-    String assignedBy = currentUser.uid; // Assuming currentUser is the parent's user document
-
-    // Resolve the UID based on the assignedTo string
-    String assignedToUid = await _resolveUserUID(assignedTo);
-
-    DocumentReference newTaskRef = await FirebaseFirestore.instance.collection('tasks').add({
-      'description': description,
-      'assignedTo': assignedToUid, // Save the UID of the assigned user
-      'assignedBy': assignedBy,
-      'redeemPoints': redeemPoints,
-      'dueDate': dueDate,
-      'addedOn': addedOn,
-      'completed': false,
-    });
-
-    String taskId = newTaskRef.id; // Retrieve the ID of the newly added document
-
-    setState(() {
-      tasks.add(TaskModel(
-        id: taskId, // Use the retrieved ID
-        description: description,
-        assignedTo: assignedTo,
-        redeemPoints: redeemPoints,
-        dueDate: dueDate,
-        addedOn: addedOn,
-        assignedBy: assignedBy,
-        completed: false,
-      ));
-    });
-  }
-
-// Function to resolve the UID based on the assignedTo string
   Future<String> _resolveUserUID(String assignedTo) async {
     String assignedToUid = '';
     QuerySnapshot userSnapshot = await FirebaseFirestore.instance
@@ -800,39 +799,64 @@ class _TasksPageState extends State<TasksPage> {
 
     return assignedToUid;
   }
+
+  void _updateTask(String taskId, String description, String assignedTo, int redeemPoints, String dueDate) {
+    FirebaseFirestore.instance.collection('tasks').doc(taskId).update({
+      'description': description,
+      'assignedTo': assignedTo,
+      'redeemPoints': redeemPoints,
+      'dueDate': dueDate,
+    }).then((_) {
+      print('Task updated successfully');
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+      _fetchTasks('parent', userId);
+    }).catchError((error) {
+      print('Error updating task: $error');
+    });
+  }
+
+  void _removeTask(TaskModel task) {
+    FirebaseFirestore.instance.collection('tasks').doc(task.id).delete().then((_) {
+      print('Task deleted successfully');
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+      _fetchTasks('parent', userId);
+    }).catchError((error) {
+      print('Error deleting task: $error');
+    });
+  }
 }
 
 class TaskModel {
   final String id;
   final String description;
-  final String assignedTo; // Include assignedTo for parent user type
-  final String assignedBy;
+  final String assignedTo;
   final int redeemPoints;
-  final String addedOn;
   final String dueDate;
-  bool completed;
+  final String addedOn;
+  final String assignedBy; // Added assignedBy field
+  String status;
 
   TaskModel({
     required this.id,
     required this.description,
     required this.assignedTo,
-    required this.assignedBy,
     required this.redeemPoints,
-    required this.addedOn,
     required this.dueDate,
-    required this.completed,
+    required this.addedOn,
+    required this.assignedBy, // Added assignedBy parameter
+    required this.status,
   });
 
-  factory TaskModel.fromMap(String id, Map<String, dynamic> map, {required String assignedBy}) {
+  factory TaskModel.fromMap(String id, Map<String, dynamic> data, {required String assignedBy}) {
     return TaskModel(
       id: id,
-      description: map['description'],
-      assignedTo: map['assignedTo'],
-      assignedBy: assignedBy,
-      redeemPoints: map['redeemPoints'],
-      addedOn: map['addedOn'],
-      dueDate: map['dueDate'],
-      completed: map['completed'],
+      description: data['description'] ?? '',
+      assignedTo: data['assignedTo'] ?? '',
+      redeemPoints: data['redeemPoints'] ?? 0,
+      dueDate: data['dueDate'] ?? '',
+      addedOn: data['addedOn'] ?? '',
+      assignedBy: assignedBy, // Assign the value of assignedBy
+      status: data['status'] ?? 'Incomplete', // Default value
     );
   }
 }
