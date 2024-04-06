@@ -52,7 +52,6 @@ dependencies:
   flutter_pdfview: ^1.0.5
   firebase_messaging: ^14.7.17
 
-
 dev_dependencies:
   flutter_test:
     sdk: flutter

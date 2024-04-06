@@ -46,6 +46,7 @@ class _ValidationPageState extends State<ValidationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text('Validation Page'),
       ),
       body: ListView.builder(

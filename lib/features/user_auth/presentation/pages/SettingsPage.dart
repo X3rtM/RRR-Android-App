@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_firebase/features/user_auth/presentation/pages/login_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 void main() {
   runApp(MyApp());
@@ -13,14 +16,11 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-
   @override
   void initState() {
     super.initState();
-    _firebaseMessaging.requestPermission();
-    _firebaseMessaging.getToken().then((token) {
-      print('FCM Token: $token');
+    Firebase.initializeApp().then((value) {
+      print('Firebase initialized');
     });
   }
 
@@ -41,6 +41,7 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text('Login'),
       ),
       body: Center(
@@ -67,12 +68,14 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _darkModeEnabled = false;
   String _selectedLanguage = 'English';
   bool _enableNotifications = true;
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  late SharedPreferences _preferences;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text('Settings'),
       ),
       body: ListView(
@@ -84,11 +87,6 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: (bool value) {
                 setState(() {
                   _enableNotifications = value;
-                  if (value) {
-                    _firebaseMessaging.subscribeToTopic('tasks');
-                  } else {
-                    _firebaseMessaging.unsubscribeFromTopic('tasks');
-                  }
                 });
               },
             ),
@@ -124,17 +122,23 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           ListTile(
-            title: Text('Logout'),
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginPage()),
-              );
+            title: Text('Log Out'),
+            trailing: Icon(Icons.logout),
+            onTap: () async {
+              // Clear shared preferences
+              _preferences = await SharedPreferences.getInstance();
+              await _preferences.clear();
+              await _firebaseAuth.signOut();
+              _navigateToLogin(context);
             },
           ),
         ],
       ),
     );
+  }
+
+  void _navigateToLogin(BuildContext context) {
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   void _toggleDarkMode(bool enabled) {
