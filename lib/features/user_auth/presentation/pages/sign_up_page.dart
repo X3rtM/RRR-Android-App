@@ -206,6 +206,12 @@ class _SignUpPageState extends State<SignUpPage> {
         // Other user data
       });
 
+      if (_userType == 'child') {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'cur_points': 0,
+        });
+      }
+
       showToast(message: "User is successfully created as $_userType");
       Navigator.pushNamed(context, "/home");
     } else {

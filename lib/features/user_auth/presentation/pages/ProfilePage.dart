@@ -21,7 +21,7 @@ class _ProfilePageState extends State<ProfilePage> {
   TextEditingController _dobController = TextEditingController();
   TextEditingController _mobileController = TextEditingController();
   String _photoURL = '';
-  int _points = 0;
+  int _points=0;
 
   @override
   void initState() {
@@ -58,7 +58,7 @@ class _ProfilePageState extends State<ProfilePage> {
           // Fetch points if the user is of type child
           if (_user.userType == 'child') {
             FirebaseFirestore.instance
-                .collection('points')
+                .collection('users')
                 .doc(user.uid)
                 .get()
                 .then((DocumentSnapshot pointsSnapshot) {
@@ -68,7 +68,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 if (data != null) {
                   setState(() {
-                    _points = data['points'] ?? 0;
+                    _points = data['cur_points'] ?? 0;
                     print('Points: $_points');
                   });
                 }
@@ -111,54 +111,56 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('img/profile.jpg'),
-            fit: BoxFit.cover,
+      body: SizedBox.expand( // Wrap Container with Expanded
+        child: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('img/profile.jpg'),
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(height: 20),
-              GestureDetector(
-                onTap: _selectImage,
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 80,
-                      backgroundImage: _photoURL.isNotEmpty
-                          ? NetworkImage(_photoURL)
-                          : null,
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      _user.username,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(height: 20),
+                GestureDetector(
+                  onTap: _selectImage,
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 80,
+                        backgroundImage: _photoURL.isNotEmpty
+                            ? NetworkImage(_photoURL)
+                            : null,
                       ),
-                    ),
-                  ],
+                      SizedBox(height: 10),
+                      Text(
+                        _user.username,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Table(
-                  border: TableBorder.all(),
-                  children: [
-                    _buildTableRow('Name', _nameController.text),
-                    _buildTableRow('Email', _user.email),
-                    _buildTableRow('Mobile Number', _mobileController.text),
-                    _buildTableRow('Date of Birth', _dobController.text),
-                    _buildTableRow('Age', _ageController.text),
-                  ],
+                SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Table(
+                    border: TableBorder.all(),
+                    children: [
+                      _buildTableRow('Name', _nameController.text),
+                      _buildTableRow('Email', _user.email),
+                      _buildTableRow('Mobile Number', _mobileController.text),
+                      _buildTableRow('Date of Birth', _dobController.text),
+                      _buildTableRow('Age', _ageController.text),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

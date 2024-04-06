@@ -52,20 +52,51 @@ class _ValidationPageState extends State<ValidationPage> {
         itemCount: tasks.length,
         itemBuilder: (context, index) {
           final task = tasks[index];
-          return ListTile(
-            title: Text(task.description),
-            subtitle: Text('Assigned To: ${task.assignedTo}'),
-            trailing: ElevatedButton(
-              onPressed: () {
-                // Mark the task as completed by parent and assign redeem points
-                _completeTask(task);
-              },
-              child: Text('Complete'),
-            ),
-          );
+          return _buildTaskItem(task);
         },
       ),
     );
+  }
+
+  Widget _buildTaskItem(TaskModel task) {
+    return Card(
+      margin: EdgeInsets.all(8),
+      child: ListTile(
+        title: Text(task.description),
+        subtitle: FutureBuilder(
+          future: _fetchAssignedUserName(task.assignedTo),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Text('Assigned To: Loading...');
+            } else if (snapshot.hasError) {
+              return Text('Assigned To: Error loading user name');
+            } else {
+              final userName = snapshot.data as String?;
+              return Text('Assigned To: ${userName ?? 'Unknown'}');
+            }
+          },
+        ),
+        trailing: ElevatedButton(
+          onPressed: () {
+            _completeTask(task);
+          },
+          child: Text('Complete'),
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _fetchAssignedUserName(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final userData = userDoc.data();
+      if (userData != null) {
+        return userData['name']; // Return the user's name
+      }
+    } catch (e) {
+      print('Error fetching assigned user name: $e');
+    }
+    return null;
   }
 
   _completeTask(TaskModel task) async {
