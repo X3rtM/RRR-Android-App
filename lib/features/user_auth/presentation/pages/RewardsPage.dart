@@ -12,17 +12,14 @@ class _RewardsPageState extends State<RewardsPage> {
   late User currentUser;
   String userType = '';
   late List<RewardModel> rewards = [];
-
-  // Define variables to hold the values for adding rewards
-  late String rewardAssignedTo;
   late TextEditingController dateController;
 
   @override
   void initState() {
     super.initState();
     currentUser = FirebaseAuth.instance.currentUser!;
-    _getUserType(currentUser.uid);
     dateController = TextEditingController();
+    _getUserType(currentUser.uid);
   }
 
   @override
@@ -32,25 +29,30 @@ class _RewardsPageState extends State<RewardsPage> {
   }
 
   Future<void> _getUserType(String userId) async {
-    final userDoc =
-    await FirebaseFirestore.instance.collection('users').doc(userId).get();
-    final userType = userDoc['userType']?.toString() ?? ''; // Safely handle null value
-    setState(() {
-      this.userType = userType;
-      _fetchRewards();
-    });
+    try {
+      final userDoc =
+      await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        final userType = userDoc['userType']?.toString() ?? '';
+        setState(() {
+          this.userType = userType;
+          _fetchRewards();
+        });
+      }
+    } catch (e) {
+      print('Error: $e');
+    }
   }
+
   Future<void> _fetchRewards() async {
     try {
       QuerySnapshot querySnapshot;
       if (userType == 'child') {
-        // Fetch rewards assigned to the current user
         querySnapshot = await FirebaseFirestore.instance
             .collection('rewards')
             .where('assignedTo', isEqualTo: currentUser.uid)
             .get();
       } else {
-        // Fetch all rewards if the user is a parent
         querySnapshot =
         await FirebaseFirestore.instance.collection('rewards').get();
       }
@@ -67,7 +69,6 @@ class _RewardsPageState extends State<RewardsPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,7 +79,7 @@ class _RewardsPageState extends State<RewardsPage> {
       body: Stack(
         children: [
           Image.asset(
-            'assets/img/reward.jpg', // Replace 'assets/background.jpg' with your image path
+            'assets/img/reward.jpg',
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
@@ -130,7 +131,7 @@ class _RewardsPageState extends State<RewardsPage> {
                 fontSize: 16.0,
               ),
             ),
-            if (userType == 'parent' && reward.assignedTo != null) // Only display when userType is 'parent' and assignedTo is not null
+            if (userType == 'parent' && reward.assignedTo != null)
               FutureBuilder<String?>(
                 future: _getUserNameByUID(reward.assignedTo!),
                 builder: (context, snapshot) {
@@ -143,16 +144,16 @@ class _RewardsPageState extends State<RewardsPage> {
                     );
                   }
                   return Text(
-                    'Assigned To: Unknown',
+                    'Assigned To: ',
                     style: TextStyle(
                       fontSize: 16.0,
                     ),
                   );
                 },
               ),
-            if (reward.dateUpTo != null) // Check if dateUpTo is not null
+            if (reward.dateUpTo != null)
               Text(
-                'Date Up To: ${DateFormat('dd MMM yyyy').format(reward.dateUpTo!)}',
+                'Expiry : ${DateFormat('dd MMM yyyy').format(reward.dateUpTo!)}',
                 style: TextStyle(
                   fontSize: 16.0,
                 ),
@@ -224,7 +225,6 @@ class _RewardsPageState extends State<RewardsPage> {
                 TextField(
                   decoration: InputDecoration(labelText: 'Assigned To'),
                   onChanged: (value) {
-                    // Fetch UID of the child user based on their name
                     _getUserUIDByName(value).then((uid) {
                       setState(() {
                         assignedToUID = uid;
@@ -270,9 +270,9 @@ class _RewardsPageState extends State<RewardsPage> {
     final userQuerySnapshot = await FirebaseFirestore.instance.collection('users').where('name', isEqualTo: userName).get();
     final userDocs = userQuerySnapshot.docs;
     if (userDocs.isNotEmpty) {
-      return userDocs.first.id; // Return the UID of the first user with the given name
+      return userDocs.first.id;
     } else {
-      return null; // Return null if no user found with the given name
+      return null;
     }
   }
 
@@ -291,8 +291,8 @@ class _RewardsPageState extends State<RewardsPage> {
       await FirebaseFirestore.instance.collection('rewards').add({
         'name': name,
         'points': points,
-        'assignedTo': assignedTo, // Store assignedTo field in Firestore
-        'dateUpTo': dateUpTo, // Store dateUpTo field in Firestore
+        'assignedTo': assignedTo,
+        'dateUpTo': dateUpTo,
       });
 
       setState(() {
@@ -300,8 +300,8 @@ class _RewardsPageState extends State<RewardsPage> {
           id: '',
           name: name,
           points: points,
-          assignedTo: assignedTo, // Assign assignedTo field
-          dateUpTo: dateUpTo, // Assign dateUpTo field
+          assignedTo: assignedTo,
+          dateUpTo: dateUpTo,
         ));
       });
     } catch (e) {
@@ -325,15 +325,15 @@ class RewardModel {
   final String id;
   final String name;
   final int points;
-  final String? assignedTo; // Assigned to field
-  final DateTime? dateUpTo; // Date up to field
+  final String? assignedTo;
+  final DateTime? dateUpTo;
 
   RewardModel({
     required this.id,
     required this.name,
     required this.points,
-    this.assignedTo, // Initialize assignedTo field
-    this.dateUpTo, // Initialize dateUpTo field
+    this.assignedTo,
+    this.dateUpTo,
   });
 
   factory RewardModel.fromMap(String id, dynamic data) {
@@ -342,9 +342,8 @@ class RewardModel {
       id: id,
       name: map['name'],
       points: map['points'],
-      assignedTo: map['assignedTo'], // Assign assignedTo value
-      dateUpTo: map['dateUpTo'] != null ? (map['dateUpTo'] as Timestamp).toDate() : null, // Assign dateUpTo value
+      assignedTo: map['assignedTo'],
+      dateUpTo: map['dateUpTo'] != null ? (map['dateUpTo'] as Timestamp).toDate() : null,
     );
   }
-
 }
