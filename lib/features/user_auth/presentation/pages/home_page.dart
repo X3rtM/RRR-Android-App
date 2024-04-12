@@ -129,7 +129,7 @@ class HomePageContent extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('img/homepage.jpg'), // Adjust path as per your image location
+              image: AssetImage('assets/img/homepage.jpg'), // Adjust path as per your image location
               fit: BoxFit.cover,
             ),
           ),

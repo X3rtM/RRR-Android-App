@@ -82,6 +82,7 @@ flutter:
      - assets/img/profile.jpg
      - assets/img/reward.jpg
      - assets/img/task.jpg
+     - assets/img/homepage.jpg
      - assets/animations/animation_1709532387249.json
 
   # An image asset can refer to one or more resolution-specific "variants", see

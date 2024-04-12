@@ -77,14 +77,39 @@ class _ValidationPageState extends State<ValidationPage> {
             }
           },
         ),
-        trailing: ElevatedButton(
-          onPressed: () {
-            _completeTask(task);
-          },
-          child: Text('Complete'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: () {
+                _completeTask(task);
+              },
+              icon: Icon(Icons.check),
+              color: Colors.green,
+            ),
+            SizedBox(width: 8),
+            IconButton(
+              onPressed: () {
+                _setTaskIncomplete(task);
+              },
+              icon: Icon(Icons.close),
+              color: Colors.red,
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  _setTaskIncomplete(TaskModel task) async {
+    try {
+      await FirebaseFirestore.instance.collection('tasks').doc(task.id).update({
+        'status': 'Incomplete',
+      });
+      _fetchTasksForValidation();
+    } catch (e) {
+      print('Error setting task incomplete: $e');
+    }
   }
 
   Future<String?> _fetchAssignedUserName(String userId) async {

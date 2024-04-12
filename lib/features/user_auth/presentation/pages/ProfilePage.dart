@@ -116,7 +116,7 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('img/profile.jpg'),
+              image: AssetImage('assets/img/profile.jpg'),
               fit: BoxFit.cover,
             ),
           ),
