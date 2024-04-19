@@ -434,76 +434,93 @@ class _TasksPageState extends State<TasksPage> {
     return Card(
       margin: EdgeInsets.all(8),
       child: ListTile(
-        title: Text(task.description),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        title: Text(
+        task.description,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18.0,
+          ),
+        ),
+        subtitle: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Assigned On: ${_formatDate(task.addedOn)}'),
-                    Text('Deadline: ${_formatDate(task.dueDate)}'),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Points: ${task.redeemPoints}'),
-                    if (userType == 'parent')
-                      FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance.collection('users').doc(task.assignedTo).get(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return Text('Assigned To: Loading...'); // Show loading indicator
-                          }
-                          if (snapshot.hasError) {
-                            return Text('Error: Unable to fetch user data'); // Show error message
-                          }
-                          if (snapshot.hasData && snapshot.data!.exists) {
-                            Map<String, dynamic>? userData = snapshot.data!.data() as Map<String, dynamic>?;
-
-                            // Display the name of the child user
-                            return Text('Assigned To: ${userData?['name'] ?? 'Unknown'}');
-                          } else {
-                            return Text('Assigned To: Unknown'); // Show if user data doesn't exist
-                          }
-                        },
-                      ),
-                    if (userType == 'child' && task.status == 'Incomplete') // Show edit button only for child user and if the task status is Incomplete
-                      IconButton(
-                        icon: Icon(Icons.edit),
-                        onPressed: () {
-                          _updateTaskStatus(task, 'MarkedByChild'); // Update task status to MarkedByChild
-                        },
-                      ),
-                  ],
-                ),
-              ],
+            // Column 1: Assigned On, Deadline
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Assigned On: ${_formatDate(task.addedOn)}'),
+                  Text('Deadline: ${_formatDate(task.dueDate)}'),
+                  SizedBox(height: 1), // Adjust spacing as needed
+                  Text('Status: $statusText', style: TextStyle(color: statusColor)),
+                ],
+              ),
             ),
-            Row(
-              children: [
-                Text('Status: $statusText', style: TextStyle(color: statusColor)),
-                if (userType == 'parent')
+            SizedBox(width: 1), // Adjust spacing between columns
+            // Column 2: Points, Assigned To
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Points: ${task.redeemPoints}'),
+                  FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance.collection('users').doc(task.assignedTo).get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Text('Assigned To: Loading...'); // Show loading indicator
+                      }
+                      if (snapshot.hasError) {
+                        return Text('Error: Unable to fetch user data'); // Show error message
+                      }
+                      if (snapshot.hasData && snapshot.data!.exists) {
+                        Map<String, dynamic>? userData = snapshot.data!.data() as Map<String, dynamic>?;
+
+                        // Display the name of the child user
+                        return Text('Assigned To: ${userData?['name'] ?? 'Unknown'}');
+                      } else {
+                        return Text('Assigned To: Unknown'); // Show if user data doesn't exist
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 3), // Adjust spacing between columns
+            // Column 3: Edit, Delete Icons
+            Expanded(
+              flex: 1,
+              child: Column(
+                children: [
                   Row(
                     children: [
-                      IconButton(
-                        icon: Icon(Icons.edit),
-                        onPressed: () {
-                          _showEditTaskDialog(task);
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.delete),
-                        onPressed: () {
-                          _removeTask(task);
-                        },
-                      ),
+                      if (userType == 'parent') ...[
+                        IconButton(
+                          icon: Icon(Icons.edit),
+                          onPressed: () {
+                            _showEditTaskDialog(task);
+                          },
+                        ),
+                        SizedBox(width: 2), // Adjust spacing between icons
+                        IconButton(
+                          icon: Icon(Icons.delete),
+                          onPressed: () {
+                            _removeTask(task);
+                          },
+                        ),
+                      ],
+                      if (userType == 'child' && task.status == 'Incomplete')
+                        IconButton(
+                          icon: Icon(Icons.edit),
+                          onPressed: () {
+                            _updateTaskStatus(task, 'MarkedByChild');
+                          },
+                        ),
                     ],
                   ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

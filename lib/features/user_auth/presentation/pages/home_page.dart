@@ -147,29 +147,47 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+            icon: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8), // Adjust vertical padding as needed
+              child: Icon(Icons.home),
+            ),
+            label: '', // Set label to empty string
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.assignment),
-            label: 'Tasks',
+            icon: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8), // Adjust vertical padding as needed
+              child: Icon(Icons.assignment),
+            ),
+            label: '', // Set label to empty string
           ),
           if (userType == 'parent')
             BottomNavigationBarItem(
-              icon: Icon(Icons.card_giftcard),
-              label: 'Rewards',
+              icon: Padding(
+                padding: EdgeInsets.symmetric(vertical: 8), // Adjust vertical padding as needed
+                child: Icon(Icons.card_giftcard),
+              ),
+              label: '', // Set label to empty string
             ),
           BottomNavigationBarItem(
-            icon: Icon(userType == 'parent' ? Icons.assignment : Icons.redeem),
-            label: userType == 'parent' ? 'Validation' : 'Rewards',
+            icon: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8), // Adjust vertical padding as needed
+              child: Icon(userType == 'parent' ? Icons.assignment_turned_in : Icons.redeem),
+            ),
+            label: '', // Set label to empty string
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
+            icon: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8), // Adjust vertical padding as needed
+              child: Icon(Icons.person),
+            ),
+            label: '', // Set label to empty string
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
+            icon: Padding(
+              padding: EdgeInsets.symmetric(vertical: 0), // Adjust vertical padding as needed
+              child: Icon(Icons.settings),
+            ),
+            label: '', // Set label to empty string
           ),
         ],
         currentIndex: _selectedIndex,
