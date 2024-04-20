@@ -52,6 +52,7 @@ dependencies:
   flutter_pdfview: ^1.0.5
   firebase_messaging: ^14.7.17
   mockito: ^5.4.4
+  mailer: ^6.1.0
   provider: ^6.1.2
 
 dev_dependencies:
