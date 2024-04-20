@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:io';
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server.dart';
 import 'TasksPage.dart';
 import 'ProfilePage.dart';
 import 'SettingsPage.dart';
@@ -76,24 +73,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Future<void> _sendVerificationEmail(String parentName, String childEmail) async {
-    final smtpServer = gmail('your@gmail.com', 'yourpassword');
-
-    final message = Message()
-      ..from = Address('your@gmail.com', 'Your Name')
-      ..recipients.add(childEmail)
-      ..subject = 'Child Verification Request'
-      ..text = '$parentName has sent a child verification request. Please click on the following link to verify: http://example.com/verify'
-      ..html = '<p>$parentName has sent a child verification request.</p><p>Please click on the following link to verify: <a href="http://example.com/verify">Verify Parent</a></p>';
-
-    try {
-      final sendReport = await send(message, smtpServer);
-      print('Message sent: ${sendReport.toString()}');
-    } catch (e) {
-      print('Error occurred while sending email: $e');
-    }
-  }
-
   Future<void> _addChild(BuildContext context) async {
     String childEmail = '';
     await showDialog(
@@ -118,8 +97,7 @@ class _HomePageState extends State<HomePage> {
               onPressed: () async {
                 // Send verification email to childEmail
                 try {
-                  String parentName = FirebaseAuth.instance.currentUser!.displayName ?? 'Parent';
-                  await _sendVerificationEmail(parentName, childEmail);
+                  await FirebaseAuth.instance.sendPasswordResetEmail(email: childEmail);
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text('Verification email sent to $childEmail'),
                   ));
@@ -147,47 +125,29 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Padding(
-              padding: EdgeInsets.symmetric(vertical: 8), // Adjust vertical padding as needed
-              child: Icon(Icons.home),
-            ),
-            label: '', // Set label to empty string
+            icon: Icon(Icons.home),
+            label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Padding(
-              padding: EdgeInsets.symmetric(vertical: 8), // Adjust vertical padding as needed
-              child: Icon(Icons.assignment),
-            ),
-            label: '', // Set label to empty string
+            icon: Icon(Icons.assignment),
+            label: 'Tasks',
           ),
           if (userType == 'parent')
             BottomNavigationBarItem(
-              icon: Padding(
-                padding: EdgeInsets.symmetric(vertical: 8), // Adjust vertical padding as needed
-                child: Icon(Icons.card_giftcard),
-              ),
-              label: '', // Set label to empty string
+              icon: Icon(Icons.card_giftcard),
+              label: 'Rewards',
             ),
           BottomNavigationBarItem(
-            icon: Padding(
-              padding: EdgeInsets.symmetric(vertical: 8), // Adjust vertical padding as needed
-              child: Icon(userType == 'parent' ? Icons.assignment_turned_in : Icons.redeem),
-            ),
-            label: '', // Set label to empty string
+            icon: Icon(userType == 'parent' ? Icons.assignment_turned_in : Icons.redeem),
+            label: userType == 'parent' ? 'Validation' : 'Rewards',
           ),
           BottomNavigationBarItem(
-            icon: Padding(
-              padding: EdgeInsets.symmetric(vertical: 8), // Adjust vertical padding as needed
-              child: Icon(Icons.person),
-            ),
-            label: '', // Set label to empty string
+            icon: Icon(Icons.person),
+            label: 'Profile',
           ),
           BottomNavigationBarItem(
-            icon: Padding(
-              padding: EdgeInsets.symmetric(vertical: 0), // Adjust vertical padding as needed
-              child: Icon(Icons.settings),
-            ),
-            label: '', // Set label to empty string
+            icon: Icon(Icons.settings),
+            label: 'Settings',
           ),
         ],
         currentIndex: _selectedIndex,
@@ -198,6 +158,8 @@ class _HomePageState extends State<HomePage> {
         unselectedFontSize: 14,
         selectedIconTheme: IconThemeData(size: 28),
         unselectedIconTheme: IconThemeData(size: 24),
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
       ),
       floatingActionButton: userType == 'parent' && _selectedIndex == 0
           ? FloatingActionButton(
