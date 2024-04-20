@@ -73,6 +73,49 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<void> _addChild(BuildContext context) async {
+    String childEmail = '';
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Add Your Child'),
+          content: TextField(
+            onChanged: (value) {
+              childEmail = value;
+            },
+            decoration: InputDecoration(hintText: 'Enter Child\'s Email'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                // Send verification email to childEmail
+                try {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(email: childEmail);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Verification email sent to $childEmail'),
+                  ));
+                } catch (error) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Failed to send verification email: $error'),
+                  ));
+                }
+                Navigator.of(context).pop();
+              },
+              child: Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     List<Widget> pages = userType == 'parent' ? _pagesParent : _pagesChild;
@@ -95,7 +138,7 @@ class _HomePageState extends State<HomePage> {
               label: 'Rewards',
             ),
           BottomNavigationBarItem(
-            icon: Icon(userType == 'parent' ? Icons.assignment : Icons.redeem),
+            icon: Icon(userType == 'parent' ? Icons.assignment_turned_in : Icons.redeem),
             label: userType == 'parent' ? 'Validation' : 'Rewards',
           ),
           BottomNavigationBarItem(
@@ -115,7 +158,15 @@ class _HomePageState extends State<HomePage> {
         unselectedFontSize: 14,
         selectedIconTheme: IconThemeData(size: 28),
         unselectedIconTheme: IconThemeData(size: 24),
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
       ),
+      floatingActionButton: userType == 'parent' && _selectedIndex == 0
+          ? FloatingActionButton(
+        onPressed: () => _addChild(context),
+        child: Icon(Icons.add),
+      )
+          : null,
     );
   }
 }
@@ -123,36 +174,13 @@ class _HomePageState extends State<HomePage> {
 class HomePageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/img/homepage.jpg'), // Adjust path as per your image location
-              fit: BoxFit.cover,
-            ),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/img/homepage.jpg'), // Adjust path as per your image location
+          fit: BoxFit.cover,
         ),
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20.0),
-              child: Text(
-                'Result Reward Redemption System',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ),
-            Text(
-              '“The way to get started is to quit talking and begin doing.” - Walt Disney',
-              style: TextStyle(fontSize: 18),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 }

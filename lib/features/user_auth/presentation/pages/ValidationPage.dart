@@ -72,7 +72,7 @@ class _ValidationPageState extends State<ValidationPage> {
             } else if (snapshot.hasError) {
               return Text('Assigned To: Error loading user name');
             } else {
-              final userName = snapshot.data as String?;
+              final userName = snapshot.data;
               return Text('Assigned To: ${userName ?? 'Unknown'}');
             }
           },
