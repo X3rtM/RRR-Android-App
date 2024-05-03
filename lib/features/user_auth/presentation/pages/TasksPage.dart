@@ -432,7 +432,7 @@ class _TasksPageState extends State<TasksPage> {
     }
 
     return Card(
-      margin: EdgeInsets.all(16),
+      margin: EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -460,7 +460,7 @@ class _TasksPageState extends State<TasksPage> {
                     ],
                   ),
                 ),
-                SizedBox(width: 2),
+                SizedBox(width: 1.5),
                 // Column 2: Points, Assigned To
                 Expanded(
                   flex: 1,
@@ -510,7 +510,7 @@ class _TasksPageState extends State<TasksPage> {
                                   _showEditTaskDialog(task);
                                 },
                               ),
-                              SizedBox(width: 2), // Adjust spacing between icons
+                              SizedBox(width: 0.5), // Adjust spacing between icons
                               IconButton(
                                 icon: Icon(Icons.delete),
                                 onPressed: () {

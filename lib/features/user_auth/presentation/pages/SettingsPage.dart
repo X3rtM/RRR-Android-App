@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_firebase/features/user_auth/presentation/pages/home_page.dart';
 
 void main() {
   runApp(MyApp());
@@ -15,22 +14,27 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+
   @override
   void initState() {
     super.initState();
-    Firebase.initializeApp().then((value) {
-      print('Firebase initialized');
+    _firebaseMessaging.requestPermission();
+    _firebaseMessaging.getToken().then((token) {
+      print('FCM Token: $token');
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'My App',
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
       themeMode: MyApp.currentThemeMode,
-      home: LoginPage(),
+      home: HomePage(),
+      // home: LoginPage(),
     );
   }
 }
@@ -40,7 +44,6 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
         title: Text('Login'),
       ),
       body: Center(
@@ -64,18 +67,18 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  bool _darkModeEnabled = false;
+  bool _darkModeEnabled = MyApp.currentThemeMode == ThemeMode.dark;
   String _selectedLanguage = 'English';
   bool _enableNotifications = true;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  late SharedPreferences _preferences;
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
         title: Text('Settings'),
+        // remove next line to add back button in page near settings, upside left corner
+        automaticallyImplyLeading: false,
       ),
       body: ListView(
         children: [
@@ -86,6 +89,11 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: (bool value) {
                 setState(() {
                   _enableNotifications = value;
+                  if (value) {
+                    _firebaseMessaging.subscribeToTopic('tasks');
+                  } else {
+                    _firebaseMessaging.unsubscribeFromTopic('tasks');
+                  }
                 });
               },
             ),
@@ -121,14 +129,12 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           ListTile(
-            title: Text('Log Out'),
-            trailing: Icon(Icons.logout),
-            onTap: () async {
-              // Clear shared preferences
-              _preferences = await SharedPreferences.getInstance();
-              await _preferences.clear();
-              await _firebaseAuth.signOut();
-              _navigateToLogin(context);
+            title: Text('Logout'),
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => LoginPage()),
+              );
             },
           ),
         ],
@@ -136,19 +142,10 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _navigateToLogin(BuildContext context) {
-    Navigator.pushReplacementNamed(context, '/login');
-  }
-
   void _toggleDarkMode(bool enabled) {
-    if (enabled) {
-      setState(() {
-        MyApp.currentThemeMode = ThemeMode.dark;
-      });
-    } else {
-      setState(() {
-        MyApp.currentThemeMode = ThemeMode.light;
-      });
-    }
+    setState(() {
+      MyApp.currentThemeMode = enabled ? ThemeMode.dark : ThemeMode.light;
+    });
+    runApp(MyApp());
   }
 }
