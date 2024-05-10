@@ -62,6 +62,7 @@ class _RedeemPageState extends State<RedeemPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -69,7 +70,7 @@ class _RedeemPageState extends State<RedeemPage> {
       ),
       body: Stack(
         children: [
-          Image.asset(
+          isDarkMode ? SizedBox.shrink() : Image.asset(
             'assets/img/reward.jpg', // Replace 'assets/background.jpg' with your image path
             fit: BoxFit.cover,
             width: double.infinity,

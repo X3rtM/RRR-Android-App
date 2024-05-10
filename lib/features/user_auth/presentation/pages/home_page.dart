@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math';
+
+// Import pages
 import 'TasksPage.dart';
 import 'ProfilePage.dart';
 import 'SettingsPage.dart';
@@ -32,8 +35,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-  late String userType = ''; // Provide a default value
+  late String userType = '';
   late User currentUser;
+  List<Map<String, dynamic>> childProfiles = [];
 
   final List<Widget> _pagesParent = [
     HomePageContent(),
@@ -57,14 +61,32 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     currentUser = FirebaseAuth.instance.currentUser!;
     _getUserType(currentUser.uid);
+    _loadChildProfiles();
   }
 
   Future<void> _getUserType(String userId) async {
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
     setState(() {
-      userType = userDoc['userType'] ?? ''; // Ensure userType is initialized
+      userType = userDoc.data()!['userType'] ?? '';
       _selectedIndex = 0;
     });
+  }
+
+  Future<void> _loadChildProfiles() async {
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
+    if (userDoc.exists && userDoc.data()!['children'] != null) {
+      List<String> childrenIds = List<String>.from(userDoc.data()!['children']);
+      for (var childId in childrenIds) {
+        var childData = await FirebaseFirestore.instance.collection('users').doc(childId).get();
+        setState(() {
+          childProfiles.add({
+            'id': childId,
+            'name': childData['name'],
+            'email': childData['email']
+          });
+        });
+      }
+    }
   }
 
   void _onItemTapped(int index) {
@@ -82,28 +104,39 @@ class _HomePageState extends State<HomePage> {
           title: Text('Add Your Child'),
           content: TextField(
             onChanged: (value) {
-              childEmail = value;
+              childEmail = value.trim();
             },
             decoration: InputDecoration(hintText: 'Enter Child\'s Email'),
           ),
           actions: <Widget>[
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: Text('Cancel'),
             ),
             TextButton(
               onPressed: () async {
-                // Send verification email to childEmail
-                try {
-                  await FirebaseAuth.instance.sendPasswordResetEmail(email: childEmail);
+                var querySnapshot = await FirebaseFirestore.instance
+                    .collection('users')
+                    .where('email', isEqualTo: childEmail)
+                    .where('userType', isEqualTo: 'child')
+                    .get();
+                if (querySnapshot.docs.isNotEmpty) {
+                  var childDoc = querySnapshot.docs.first;
+                  List<String> updatedChildren = List.from(childProfiles.map((e) => e['id']))..add(childDoc.id);
+                  await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({'children': updatedChildren});
+                  setState(() {
+                    childProfiles.add({
+                      'id': childDoc.id,
+                      'name': childDoc['name'],
+                      'email': childDoc['email']
+                    });
+                  });
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Verification email sent to $childEmail'),
+                    content: Text('Child profile added successfully.'),
                   ));
-                } catch (error) {
+                } else {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Failed to send verification email: $error'),
+                    content: Text('No child user found with that email.'),
                   ));
                 }
                 Navigator.of(context).pop();
@@ -119,36 +152,27 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     List<Widget> pages = userType == 'parent' ? _pagesParent : _pagesChild;
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: pages[_selectedIndex],
+      body: Container(
+        decoration: BoxDecoration(
+          image: !isDarkMode ? DecorationImage(
+            image: AssetImage('assets/img/homepage.jpg'),
+            fit: BoxFit.cover,
+          ) : null,
+        ),
+        child: pages[_selectedIndex],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment),
-            label: 'Tasks',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.assignment), label: 'Tasks'),
           if (userType == 'parent')
-            BottomNavigationBarItem(
-              icon: Icon(Icons.card_giftcard),
-              label: 'Rewards',
-            ),
-          BottomNavigationBarItem(
-            icon: Icon(userType == 'parent' ? Icons.assignment_turned_in : Icons.redeem),
-            label: userType == 'parent' ? 'Validation' : 'Rewards',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
+            BottomNavigationBarItem(icon: Icon(Icons.card_giftcard), label: 'Rewards'),
+          BottomNavigationBarItem(icon: Icon(userType == 'parent' ? Icons.assignment_turned_in : Icons.redeem), label: userType == 'parent' ? 'Validation' : 'Rewards'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.lightBlue,
@@ -162,25 +186,106 @@ class _HomePageState extends State<HomePage> {
         showUnselectedLabels: false,
       ),
       floatingActionButton: userType == 'parent' && _selectedIndex == 0
-          ? FloatingActionButton(
-        onPressed: () => _addChild(context),
-        child: Icon(Icons.add),
-      )
+          ? FloatingActionButton(onPressed: () => _addChild(context), child: Icon(Icons.add))
           : null,
     );
   }
 }
 
 class HomePageContent extends StatelessWidget {
+  final List<String> adviceList = [
+    "Remember to break your tasks into smaller steps.",
+    "Reward yourself after completing a challenging task.",
+    "Set clear goals for each study session.",
+  ];
+
   @override
   Widget build(BuildContext context) {
+    int adviceIndex = Random().nextInt(adviceList.length);
+    List<Map<String, dynamic>> childProfiles = (context.findAncestorStateOfType<_HomePageState>()?.childProfiles ?? []);
+
     return Container(
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/img/homepage.jpg'), // Adjust path as per your image location
+          image: AssetImage('assets/img/homepage.jpg'),
           fit: BoxFit.cover,
         ),
       ),
+      child: Column(
+        children: [
+          Spacer(),
+          Text(
+            adviceList[adviceIndex],
+            style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          Spacer(),
+          Expanded(
+            child: GridView.builder(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 1,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: childProfiles.length,
+              itemBuilder: (context, index) {
+                return Card(
+                  color: Colors.white70,
+                  child: Container(
+                    alignment: Alignment.centerLeft,
+                    padding: EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('${childProfiles[index]['name']}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        SizedBox(height: 4),
+                        Text('${childProfiles[index]['email']}', style: TextStyle(fontSize: 14)),
+                        Spacer(),
+                        PopupMenuButton<String>(
+                          onSelected: (value) {
+                            if (value == 'Remove') {
+                              _removeChild(context, childProfiles[index]['id']);
+                            }
+                          },
+                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                            const PopupMenuItem<String>(
+                              value: 'Remove',
+                              child: Text('Remove'),
+                            ),
+                          ],
+                          icon: Icon(Icons.more_vert, color: Colors.black),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Spacer(),
+        ],
+      ),
     );
+  }
+
+  void _removeChild(BuildContext context, String childId) async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    await FirebaseFirestore.instance.collection('users').doc(currentUser!.uid).update({
+      'children': FieldValue.arrayRemove([childId])
+    }).then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Child removed successfully'),
+      ));
+      // Update local state
+      context.findAncestorStateOfType<_HomePageState>()?.childProfiles.removeWhere((profile) => profile['id'] == childId);
+      (context as Element).reassemble();
+    }).catchError((error) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to remove child: $error'),
+      ));
+    });
   }
 }

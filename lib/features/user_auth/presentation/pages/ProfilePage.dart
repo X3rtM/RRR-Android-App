@@ -82,6 +82,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -115,7 +116,7 @@ class _ProfilePageState extends State<ProfilePage> {
       body: SizedBox.expand( // Wrap Container with Expanded
         child: Container(
           decoration: BoxDecoration(
-            image: DecorationImage(
+            image: isDarkMode ? null : DecorationImage(
               image: AssetImage('assets/img/profile.jpg'),
               fit: BoxFit.cover,
             ),

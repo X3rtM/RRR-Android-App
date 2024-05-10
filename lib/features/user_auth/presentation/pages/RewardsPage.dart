@@ -71,6 +71,8 @@ class _RewardsPageState extends State<RewardsPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -78,7 +80,7 @@ class _RewardsPageState extends State<RewardsPage> {
       ),
       body: Stack(
         children: [
-          Image.asset(
+          isDarkMode ? SizedBox.shrink() : Image.asset(
             'assets/img/reward.jpg',
             fit: BoxFit.cover,
             width: double.infinity,

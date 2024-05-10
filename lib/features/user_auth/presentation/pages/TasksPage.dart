@@ -155,6 +155,9 @@ class _TasksPageState extends State<TasksPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Determine whether the theme is currently set to dark mode
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -162,7 +165,8 @@ class _TasksPageState extends State<TasksPage> {
       ),
       body: Container(
         decoration: BoxDecoration(
-          image: DecorationImage(
+          // Only set the image if the theme is not dark
+          image: isDarkMode ? null : DecorationImage(
             image: AssetImage('assets/img/task.jpg'),
             fit: BoxFit.cover,
           ),
@@ -432,7 +436,7 @@ class _TasksPageState extends State<TasksPage> {
     }
 
     return Card(
-      margin: EdgeInsets.all(14),
+      margin: EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
