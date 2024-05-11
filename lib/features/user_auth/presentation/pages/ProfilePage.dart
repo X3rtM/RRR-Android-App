@@ -22,6 +22,11 @@ class _ProfilePageState extends State<ProfilePage> {
   TextEditingController _mobileController = TextEditingController();
   String _photoURL = '';
   int _points=0;
+  String _occupation = '';
+  String _education = '';
+  String _std = '';
+  String _favoriteSubject = '';
+  String _school = '';
 
   @override
   void initState() {
@@ -69,7 +74,29 @@ class _ProfilePageState extends State<ProfilePage> {
                 if (data != null) {
                   setState(() {
                     _points = data['cur_points'] ?? 0;
+                    _std = data['std'] ?? '';
+                    _favoriteSubject = data['favorite_subject'] ?? '';
+                    _school = data['school'] ?? '';
                     print('Points: $_points');
+                  });
+                }
+              }
+            });
+          } else if (_user.userType == 'parent') {
+            // Fetch occupation and education if the user is of type parent
+            FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get()
+                .then((DocumentSnapshot parentSnapshot) {
+              if (parentSnapshot.exists) {
+                Map<String, dynamic>? data =
+                parentSnapshot.data() as Map<String, dynamic>?;
+
+                if (data != null) {
+                  setState(() {
+                    _occupation = data['occupation'] ?? '';
+                    _education = data['education'] ?? '';
                   });
                 }
               }
@@ -158,6 +185,17 @@ class _ProfilePageState extends State<ProfilePage> {
                       _buildTableRow('Mobile Number', _mobileController.text),
                       _buildTableRow('Date of Birth', _dobController.text),
                       _buildTableRow('Age', _ageController.text),
+                      if (_user.userType == 'child')
+                        ...[
+                          _buildTableRow('Standard', _std),
+                          _buildTableRow('Favorite Subject', _favoriteSubject),
+                          _buildTableRow('School', _school),
+                        ],
+                      if (_user.userType == 'parent')
+                        ...[
+                          _buildTableRow('Occupation', _occupation),
+                          _buildTableRow('Education', _education),
+                        ],
                     ],
                   ),
                 ),
@@ -298,6 +336,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
   TextEditingController _ageController = TextEditingController();
   TextEditingController _dobController = TextEditingController();
   TextEditingController _mobileController = TextEditingController();
+  TextEditingController _stdController = TextEditingController();
+  TextEditingController _favoriteSubjectController = TextEditingController();
+  TextEditingController _schoolController = TextEditingController();
+  TextEditingController _occupationController = TextEditingController();
+  TextEditingController _educationController = TextEditingController();
 
   @override
   void initState() {
@@ -318,6 +361,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
           _dobController.text = userData?['dob'] ?? '';
           _mobileController.text = userData?['mobile'] ?? '';
           _ageController.text = _calculateAge(_dobController.text);
+          if (_user.userType == 'child') {
+            _stdController.text = userData?['std'] ?? '';
+            _favoriteSubjectController.text = userData?['favorite_subject'] ?? '';
+            _schoolController.text = userData?['school'] ?? '';
+          } else if (_user.userType == 'parent') {
+            _occupationController.text = userData?['occupation'] ?? '';
+            _educationController.text = userData?['education'] ?? '';
+          }
         });
       }
     });
@@ -379,6 +430,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
               decoration: InputDecoration(labelText: 'Age'),
               enabled: false,
             ),
+            if (_user.userType == 'child') ...[
+              TextField(
+                controller: _stdController,
+                decoration: InputDecoration(labelText: 'Standard'),
+              ),
+              TextField(
+                controller: _favoriteSubjectController,
+                decoration: InputDecoration(labelText: 'Favorite Subject'),
+              ),
+              TextField(
+                controller: _schoolController,
+                decoration: InputDecoration(labelText: 'School'),
+              ),
+            ],
+            if (_user.userType == 'parent') ...[
+              TextField(
+                controller: _occupationController,
+                decoration: InputDecoration(labelText: 'Occupation'),
+              ),
+              TextField(
+                controller: _educationController,
+                decoration: InputDecoration(labelText: 'Education'),
+              ),
+            ],
           ],
         ),
       ),
@@ -405,6 +480,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'name': _nameController.text,
         'dob': _dobController.text,
         'mobile': _mobileController.text,
+        if (_user.userType == 'child') ...{
+          'std': _stdController.text,
+          'favorite_subject': _favoriteSubjectController.text,
+          'school': _schoolController.text,
+        },
+        if (_user.userType == 'parent') ...{
+          'occupation': _occupationController.text,
+          'education': _educationController.text,
+        },
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
