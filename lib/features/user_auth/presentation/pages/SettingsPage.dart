@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_firebase/features/user_auth/presentation/pages/home_page.dart';
 
 void main() {
   runApp(MyApp());
@@ -34,17 +33,16 @@ class _MyAppState extends State<MyApp> {
       darkTheme: ThemeData.dark(),
       themeMode: MyApp.currentThemeMode,
       home: HomePage(),
-      // home: LoginPage(),
     );
   }
 }
 
-class LoginPage extends StatelessWidget {
+class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Login'),
+        title: Text('Home'),
       ),
       body: Center(
         child: ElevatedButton(
@@ -54,7 +52,7 @@ class LoginPage extends StatelessWidget {
               MaterialPageRoute(builder: (context) => SettingsPage()),
             );
           },
-          child: Text('Login'),
+          child: Text('Settings'),
         ),
       ),
     );
@@ -131,10 +129,8 @@ class _SettingsPageState extends State<SettingsPage> {
           ListTile(
             title: Text('Logout'),
             onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginPage()),
-              );
+              // Pop until LoginPage is found, then push LoginPage
+              Navigator.popUntil(context, ModalRoute.withName('/login'));
             },
           ),
         ],

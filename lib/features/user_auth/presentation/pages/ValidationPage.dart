@@ -49,12 +49,20 @@ class _ValidationPageState extends State<ValidationPage> {
         automaticallyImplyLeading: false,
         title: Text('Validation Page'),
       ),
-      body: ListView.builder(
-        itemCount: tasks.length,
-        itemBuilder: (context, index) {
-          final task = tasks[index];
-          return _buildTaskItem(task);
-        },
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage("assets/img/task.jpg"),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: ListView.builder(
+          itemCount: tasks.length,
+          itemBuilder: (context, index) {
+            final task = tasks[index];
+            return _buildTaskItem(task);
+          },
+        ),
       ),
     );
   }

@@ -524,11 +524,12 @@ class _TasksPageState extends State<TasksPage> {
                             ],
                             if (userType == 'child' && task.status == 'Incomplete')
                               IconButton(
-                                icon: Icon(Icons.edit),
+                                icon: Icon(Icons.check,color: Colors.green),
                                 onPressed: () {
                                   _updateTaskStatus(task, 'MarkedByChild');
                                 },
                               ),
+
                           ],
                         ),
                       ),

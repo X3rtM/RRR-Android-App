@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
 
-// Import pages
 import 'TasksPage.dart';
 import 'ProfilePage.dart';
 import 'SettingsPage.dart';
@@ -155,6 +154,12 @@ class _HomePageState extends State<HomePage> {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      appBar: _selectedIndex == 0
+          ? AppBar(
+        automaticallyImplyLeading: false,
+        title: Text('Home Page'),
+      )
+          : null,
       body: Container(
         decoration: BoxDecoration(
           image: !isDarkMode ? DecorationImage(
@@ -193,15 +198,8 @@ class _HomePageState extends State<HomePage> {
 }
 
 class HomePageContent extends StatelessWidget {
-  final List<String> adviceList = [
-    "Remember to break your tasks into smaller steps.",
-    "Reward yourself after completing a challenging task.",
-    "Set clear goals for each study session.",
-  ];
-
   @override
   Widget build(BuildContext context) {
-    int adviceIndex = Random().nextInt(adviceList.length);
     List<Map<String, dynamic>> childProfiles = (context.findAncestorStateOfType<_HomePageState>()?.childProfiles ?? []);
 
     return Container(
@@ -214,12 +212,6 @@ class HomePageContent extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Spacer(),
-          Text(
-            adviceList[adviceIndex],
-            style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
           Spacer(),
           Expanded(
             child: GridView.builder(
