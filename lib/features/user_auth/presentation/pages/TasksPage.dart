@@ -496,14 +496,13 @@ class _TasksPageState extends State<TasksPage> {
                   ),
                 ),
                 SizedBox(width: 1),
-                // Column 3: Edit, Delete Icons
                 Expanded(
                   flex: 1,
                   child: Column(
                     children: [
                       Container(
                         alignment: Alignment.center,
-                        height: 70, // Set the height of the container to match the height of ListTile
+                        height: 70,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -569,6 +568,11 @@ class _TasksPageState extends State<TasksPage> {
     int redeemPoints = 0;
     String dueDate = '';
 
+    bool descriptionError = false;
+    bool assignedToError = false;
+    bool redeemPointsError = false;
+    bool dueDateError = false;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -580,22 +584,40 @@ class _TasksPageState extends State<TasksPage> {
                 child: Column(
                   children: [
                     TextField(
-                      decoration: InputDecoration(labelText: 'Description'),
+                      decoration: InputDecoration(
+                        labelText: 'Description',
+                        errorText: descriptionError ? 'Description cannot be empty' : null,
+                      ),
                       onChanged: (value) {
-                        description = value;
+                        setState(() {
+                          description = value;
+                          descriptionError = value.isEmpty;
+                        });
                       },
                     ),
                     TextField(
-                      decoration: InputDecoration(labelText: 'Assigned To'),
+                      decoration: InputDecoration(
+                        labelText: 'Assigned To',
+                        errorText: assignedToError ? 'Assigned To cannot be empty' : null,
+                      ),
                       onChanged: (value) {
-                        assignedTo = value;
+                        setState(() {
+                          assignedTo = value;
+                          assignedToError = value.isEmpty;
+                        });
                       },
                     ),
                     TextField(
-                      decoration: InputDecoration(labelText: 'Redeem Points'),
+                      decoration: InputDecoration(
+                        labelText: 'Redeem Points',
+                        errorText: redeemPointsError ? 'Redeem Points cannot be empty' : null,
+                      ),
                       keyboardType: TextInputType.number,
                       onChanged: (value) {
-                        redeemPoints = int.tryParse(value) ?? 0;
+                        setState(() {
+                          redeemPoints = int.tryParse(value) ?? 0;
+                          redeemPointsError = value.isEmpty;
+                        });
                       },
                     ),
                     Row(
@@ -612,6 +634,7 @@ class _TasksPageState extends State<TasksPage> {
                             if (selectedDate != null) {
                               setState(() {
                                 dueDate = DateFormat('dd-MM-yyyy').format(selectedDate);
+                                dueDateError = false;
                               });
                             }
                           },
@@ -633,8 +656,15 @@ class _TasksPageState extends State<TasksPage> {
                 ),
                 TextButton(
                   onPressed: () {
-                    _addTask(description, assignedTo, redeemPoints, dueDate);
-                    Navigator.of(context).pop();
+                    if (description.isEmpty) setState(() => descriptionError = true);
+                    if (assignedTo.isEmpty) setState(() => assignedToError = true);
+                    if (redeemPoints == 0) setState(() => redeemPointsError = true);
+                    if (dueDate.isEmpty) setState(() => dueDateError = true);
+
+                    if (!descriptionError && !assignedToError && !redeemPointsError && !dueDateError) {
+                      _addTask(description, assignedTo, redeemPoints, dueDate);
+                      Navigator.of(context).pop();
+                    }
                   },
                   child: Text('Save'),
                 ),
@@ -648,51 +678,63 @@ class _TasksPageState extends State<TasksPage> {
 
   void _showEditTaskDialog(TaskModel task) {
     String description = task.description;
-    String assignedTo = task.assignedTo; // Assuming assignedTo initially contains the UID
+    String assignedTo = task.assignedTo;
     int redeemPoints = task.redeemPoints;
     String dueDate = task.dueDate;
+
+    bool descriptionError = false;
+    bool assignedToError = false;
+    bool redeemPointsError = false;
+    bool dueDateError = false;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text('Edit Task'),
-              content: SingleChildScrollView(
+        return AlertDialog(
+          title: Text('Edit Task'),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return SingleChildScrollView(
                 child: Column(
                   children: [
                     TextField(
-                      decoration: InputDecoration(labelText: 'Description'),
+                      decoration: InputDecoration(
+                        labelText: 'Description',
+                        errorText: descriptionError ? 'Description cannot be empty' : null,
+                      ),
                       controller: TextEditingController(text: description),
                       onChanged: (value) {
-                        description = value;
-                      },
-                    ),
-                    StreamBuilder<String>(
-                      stream: _resolveUserNameStream(assignedTo), // Resolve the user's name
-                      builder: (context, snapshot) {
-                        if (snapshot.hasData) {
-                          String? userName = snapshot.data; // Use a nullable variable
-                          assignedTo = userName ?? ''; // If userName is null, assign an empty string
-                          return TextField(
-                            decoration: InputDecoration(labelText: 'Assigned To'),
-                            controller: TextEditingController(text: userName), // Set the name directly
-                            onChanged: (value) {
-                              assignedTo = value; // Update assignedTo with the name
-                            },
-                          );
-                        } else {
-                          return CircularProgressIndicator(); // Display a loading indicator while resolving the name
-                        }
+                        setState(() {
+                          description = value;
+                          descriptionError = value.isEmpty;
+                        });
                       },
                     ),
                     TextField(
-                      decoration: InputDecoration(labelText: 'Redeem Points'),
+                      decoration: InputDecoration(
+                        labelText: 'Assigned To',
+                        errorText: assignedToError ? 'Assigned To cannot be empty' : null,
+                      ),
+                      controller: TextEditingController(text: assignedTo),
+                      onChanged: (value) {
+                        setState(() {
+                          assignedTo = value;
+                          assignedToError = value.isEmpty;
+                        });
+                      },
+                    ),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Redeem Points',
+                        errorText: redeemPointsError ? 'Redeem Points cannot be empty' : null,
+                      ),
                       keyboardType: TextInputType.number,
                       controller: TextEditingController(text: redeemPoints.toString()),
                       onChanged: (value) {
-                        redeemPoints = int.tryParse(value) ?? 0;
+                        setState(() {
+                          redeemPoints = int.tryParse(value) ?? 0;
+                          redeemPointsError = value.isEmpty;
+                        });
                       },
                     ),
                     Row(
@@ -709,6 +751,7 @@ class _TasksPageState extends State<TasksPage> {
                             if (selectedDate != null) {
                               setState(() {
                                 dueDate = DateFormat('dd-MM-yyyy').format(selectedDate);
+                                dueDateError = false;
                               });
                             }
                           },
@@ -720,24 +763,31 @@ class _TasksPageState extends State<TasksPage> {
                     ),
                   ],
                 ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    _updateTask(task.id, description, assignedTo, redeemPoints, dueDate);
-                    Navigator.of(context).pop();
-                  },
-                  child: Text('Save'),
-                ),
-              ],
-            );
-          },
+              );
+            },
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (description.isEmpty) setState(() => descriptionError = true);
+                if (assignedTo.isEmpty) setState(() => assignedToError = true);
+                if (redeemPoints == 0) setState(() => redeemPointsError = true);
+                if (dueDate.isEmpty) setState(() => dueDateError = true);
+
+                if (!descriptionError && !assignedToError && !redeemPointsError && !dueDateError) {
+                  _updateTask(task.id, description, assignedTo, redeemPoints, dueDate);
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text('Save'),
+            ),
+          ],
         );
       },
     );
