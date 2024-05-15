@@ -122,7 +122,6 @@ class _HomePageState extends State<HomePage> {
                 if (querySnapshot.docs.isNotEmpty) {
                   var childDoc = querySnapshot.docs.first;
                   List<String> updatedChildren = List.from(childProfiles.map((e) => e['id']))..add(childDoc.id);
-                  await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({'children': updatedChildren});
                   setState(() {
                     childProfiles.add({
                       'id': childDoc.id,
@@ -200,7 +199,8 @@ class _HomePageState extends State<HomePage> {
 class HomePageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    List<Map<String, dynamic>> childProfiles = (context.findAncestorStateOfType<_HomePageState>()?.childProfiles ?? []);
+    List<Map<String, dynamic>> childProfiles =
+    (context.findAncestorStateOfType<_HomePageState>()?.childProfiles ?? []);
 
     return Container(
       padding: EdgeInsets.all(20),
@@ -225,18 +225,34 @@ class HomePageContent extends StatelessWidget {
               itemBuilder: (context, index) {
                 return Card(
                   color: Colors.white70,
-                  child: Container(
-                    alignment: Alignment.centerLeft,
-                    padding: EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('${childProfiles[index]['name']}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        SizedBox(height: 4),
-                        Text('${childProfiles[index]['email']}', style: TextStyle(fontSize: 14)),
-                        Spacer(),
-                        PopupMenuButton<String>(
+                  child: Stack(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            alignment: Alignment.centerLeft,
+                            padding: EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '${childProfiles[index]['name']}',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                ),
+                                SizedBox(height: 4),
+                                Text('${childProfiles[index]['email']}', style: TextStyle(fontSize: 14)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: PopupMenuButton<String>(
                           onSelected: (value) {
                             if (value == 'Remove') {
                               _removeChild(context, childProfiles[index]['id']);
@@ -250,8 +266,8 @@ class HomePageContent extends StatelessWidget {
                           ],
                           icon: Icon(Icons.more_vert, color: Colors.black),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -268,16 +284,27 @@ class HomePageContent extends StatelessWidget {
     await FirebaseFirestore.instance.collection('users').doc(currentUser!.uid).update({
       'children': FieldValue.arrayRemove([childId])
     }).then((_) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Child removed successfully'),
-      ));
-      // Update local state
-      context.findAncestorStateOfType<_HomePageState>()?.childProfiles.removeWhere((profile) => profile['id'] == childId);
-      (context as Element).reassemble();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Child removed successfully'),
+        ),
+      );
+      // Update local state if it's still mounted
+      if (context.findAncestorStateOfType<_HomePageState>()?.mounted ?? false) {
+        context.findAncestorStateOfType<_HomePageState>()?.setState(() {
+          context.findAncestorStateOfType<_HomePageState>()?.childProfiles.removeWhere((profile) => profile['id'] == childId);
+        });
+      }
+      // Delay before reloading the homepage
+      Future.delayed(Duration(seconds: 2), () {
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => HomePage()));
+      });
     }).catchError((error) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to remove child: $error'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to remove child: $error'),
+        ),
+      );
     });
   }
 }
