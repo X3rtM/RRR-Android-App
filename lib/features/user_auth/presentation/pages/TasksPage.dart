@@ -155,7 +155,6 @@ class _TasksPageState extends State<TasksPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine whether the theme is currently set to dark mode
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -200,12 +199,13 @@ class _TasksPageState extends State<TasksPage> {
               ),
             ),
             PopupMenuButton<SortBy>(
+              icon:Icon(Icons.sort),
               onSelected: (sortBy) {
                 setState(() {
                   this.sortBy = sortBy;
                 });
-                _fetchTasks('parent', userId); // Fetch tasks with updated sorting
-              },
+                _fetchTasks('parent', userId);
+                },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<SortBy>>[
                 PopupMenuItem<SortBy>(
                   value: SortBy.DueDate,
@@ -218,6 +218,23 @@ class _TasksPageState extends State<TasksPage> {
                 PopupMenuItem<SortBy>(
                   value: SortBy.Name,
                   child: Text('Sort by Name'),
+                ),
+              ],
+            ),
+            PopupMenuButton<String>(
+              onSelected: (option) {
+                if (option == 'Task History') {
+                  setState(() {
+                    tasks = tasks.where((task) => task.status == 'MarkedByParent').toList();
+                  });
+                } else {
+                  _fetchTasks('parent', userId);
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'Task History',
+                  child: Text('Task History'),
                 ),
               ],
             ),
@@ -236,6 +253,8 @@ class _TasksPageState extends State<TasksPage> {
                   return task.description.toLowerCase().contains(_searchText.toLowerCase()) ||
                       task.assignedTo.toLowerCase().contains(_searchText.toLowerCase());
                 }).toList();
+
+                tasksList = tasksList.where((task) => task.status != 'Completed').toList(); // Filter incomplete tasks
 
                 tasksList.sort((a, b) {
                   switch (sortBy) {

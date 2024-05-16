@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:math';
 
 import 'TasksPage.dart';
 import 'ProfilePage.dart';
@@ -72,26 +71,82 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadChildProfiles() async {
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
+    final userDoc =
+    await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
+    List<Map<String, dynamic>> profiles = [];
     if (userDoc.exists && userDoc.data()!['children'] != null) {
       List<String> childrenIds = List<String>.from(userDoc.data()!['children']);
       for (var childId in childrenIds) {
-        var childData = await FirebaseFirestore.instance.collection('users').doc(childId).get();
-        setState(() {
-          childProfiles.add({
-            'id': childId,
-            'name': childData['name'],
-            'email': childData['email']
-          });
+        var childData =
+        await FirebaseFirestore.instance.collection('users').doc(childId).get();
+        profiles.add({
+          'id': childId,
+          'name': childData['name'],
+          'email': childData['email']
         });
       }
     }
+    setState(() {
+      childProfiles = profiles;
+    });
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  @override
+  Widget build(BuildContext context) {
+    List<Widget> pages = userType == 'parent' ? _pagesParent : _pagesChild;
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: _selectedIndex == 0
+          ? AppBar(
+        automaticallyImplyLeading: false,
+        title: Text('Home Page'),
+      )
+          : null,
+      body: Container(
+        decoration: BoxDecoration(
+          image: !isDarkMode
+              ? DecorationImage(
+            image: AssetImage('assets/img/homepage.jpg'),
+            fit: BoxFit.cover,
+          )
+              : null,
+        ),
+        child: pages[_selectedIndex],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.assignment), label: 'Tasks'),
+          if (userType == 'parent')
+            BottomNavigationBarItem(
+                icon: Icon(Icons.card_giftcard), label: 'Rewards'),
+          BottomNavigationBarItem(
+              icon: Icon(userType == 'parent'
+                  ? Icons.assignment_turned_in
+                  : Icons.redeem),
+              label: userType == 'parent' ? 'Validation' : 'Rewards'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings), label: 'Settings'),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.lightBlue,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        selectedFontSize: 16,
+        unselectedFontSize: 14,
+        selectedIconTheme: IconThemeData(size: 28),
+        unselectedIconTheme: IconThemeData(size: 24),
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+      ),
+      floatingActionButton: userType == 'parent' && _selectedIndex == 0
+          ? FloatingActionButton(
+          onPressed: () => _addChild(context), child: Icon(Icons.add))
+          : null,
+    );
   }
 
   Future<void> _addChild(BuildContext context) async {
@@ -121,7 +176,17 @@ class _HomePageState extends State<HomePage> {
                     .get();
                 if (querySnapshot.docs.isNotEmpty) {
                   var childDoc = querySnapshot.docs.first;
-                  List<String> updatedChildren = List.from(childProfiles.map((e) => e['id']))..add(childDoc.id);
+                  List<String> updatedChildren =
+                  List.from(childProfiles.map((e) => e['id']))
+                    ..add(childDoc.id);
+                  User? currentUser = FirebaseAuth.instance.currentUser;
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(currentUser!.uid)
+                      .update({
+                    'children': updatedChildren,
+                  });
+                  // Update child profiles list here
                   setState(() {
                     childProfiles.add({
                       'id': childDoc.id,
@@ -147,52 +212,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    List<Widget> pages = userType == 'parent' ? _pagesParent : _pagesChild;
-    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      appBar: _selectedIndex == 0
-          ? AppBar(
-        automaticallyImplyLeading: false,
-        title: Text('Home Page'),
-      )
-          : null,
-      body: Container(
-        decoration: BoxDecoration(
-          image: !isDarkMode ? DecorationImage(
-            image: AssetImage('assets/img/homepage.jpg'),
-            fit: BoxFit.cover,
-          ) : null,
-        ),
-        child: pages[_selectedIndex],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.assignment), label: 'Tasks'),
-          if (userType == 'parent')
-            BottomNavigationBarItem(icon: Icon(Icons.card_giftcard), label: 'Rewards'),
-          BottomNavigationBarItem(icon: Icon(userType == 'parent' ? Icons.assignment_turned_in : Icons.redeem), label: userType == 'parent' ? 'Validation' : 'Rewards'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.lightBlue,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 16,
-        unselectedFontSize: 14,
-        selectedIconTheme: IconThemeData(size: 28),
-        unselectedIconTheme: IconThemeData(size: 24),
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-      ),
-      floatingActionButton: userType == 'parent' && _selectedIndex == 0
-          ? FloatingActionButton(onPressed: () => _addChild(context), child: Icon(Icons.add))
-          : null,
-    );
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 }
 
@@ -200,7 +223,8 @@ class HomePageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> childProfiles =
-    (context.findAncestorStateOfType<_HomePageState>()?.childProfiles ?? []);
+    (context.findAncestorStateOfType<_HomePageState>()?.childProfiles ??
+        []);
 
     return Container(
       padding: EdgeInsets.all(20),
@@ -211,71 +235,235 @@ class HomePageContent extends StatelessWidget {
         ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Spacer(),
-          Expanded(
-            child: GridView.builder(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              itemCount: childProfiles.length,
-              itemBuilder: (context, index) {
-                return Card(
-                  color: Colors.white70,
-                  child: Stack(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            alignment: Alignment.centerLeft,
-                            padding: EdgeInsets.all(10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '${childProfiles[index]['name']}',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                ),
-                                SizedBox(height: 4),
-                                Text('${childProfiles[index]['email']}', style: TextStyle(fontSize: 14)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: PopupMenuButton<String>(
-                          onSelected: (value) {
-                            if (value == 'Remove') {
-                              _removeChild(context, childProfiles[index]['id']);
-                            }
-                          },
-                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                            const PopupMenuItem<String>(
-                              value: 'Remove',
-                              child: Text('Remove'),
-                            ),
-                          ],
-                          icon: Icon(Icons.more_vert, color: Colors.black),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+          if (childProfiles.isNotEmpty) ...[
+            Expanded(
+              child: _buildChildCards(childProfiles),
             ),
-          ),
-          Spacer(),
+            SizedBox(height: 20), // Add some space between child cards and table
+          ],
+          _buildTable(), // Always show the table below child cards or alone
         ],
       ),
+    );
+  }
+
+  Widget _buildTable() {
+    return Expanded(
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Task Advice:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            ),
+            SizedBox(height: 10),
+            Table(
+              border: TableBorder.all(color: Colors.black),
+              columnWidths: {
+                0: FlexColumnWidth(1),
+                1: FlexColumnWidth(2),
+              },
+              children: [
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Age Group',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Task Advice',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('0-3 years'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Simple tasks like stacking blocks or identifying colors.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('4-6 years'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Tasks involving counting, simple puzzles, or drawing shapes.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('7-9 years'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'More complex puzzles, reading comprehension, basic math operations.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('10-12 years'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Advanced math, writing essays, critical thinking tasks.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('13-15 years'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'High school level tasks, research projects, exam preparation.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('16+ years'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'College-level assignments, career planning, internships.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                // Add more rows for additional age groups and their advice as needed
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChildCards(List<Map<String, dynamic>> childProfiles) {
+    return GridView.builder(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+      ),
+      itemCount: childProfiles.length,
+      itemBuilder: (context, index) {
+        return Card(
+          color: Colors.white70,
+          child: Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    alignment: Alignment.centerLeft,
+                    padding: EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${childProfiles[index]['name']}',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        SizedBox(height: 4),
+                        Text('${childProfiles[index]['email']}', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Positioned(
+                top: 0,
+                right: 0,
+                child: PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'Remove') {
+                      _removeChild(context, childProfiles[index]['id']);
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      value: 'Remove',
+                      child: Text('Remove'),
+                    ),
+                  ],
+                  icon: Icon(Icons.more_vert, color: Colors.black),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
