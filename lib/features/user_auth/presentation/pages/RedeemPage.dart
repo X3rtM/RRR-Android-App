@@ -29,10 +29,8 @@ class _RedeemPageState extends State<RedeemPage> {
   }
 
   Future<void> _getUserType(String userId) async {
-    final userDoc =
-    await FirebaseFirestore.instance.collection('users').doc(userId).get();
-    final userType =
-        userDoc['userType']?.toString() ?? ''; // Safely handle null value
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final userType = userDoc['userType']?.toString() ?? ''; // Safely handle null value
     setState(() {
       this.userType = userType;
       _fetchRewards();
@@ -67,6 +65,15 @@ class _RedeemPageState extends State<RedeemPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('Rewards'),
+        actions: [
+          if (userType == 'child')
+            PopupMenuButton<int>(
+              onSelected: (item) => _onSelected(context, item),
+              itemBuilder: (context) => [
+                PopupMenuItem<int>(value: 0, child: Text('Redeem History')),
+              ],
+            ),
+        ],
       ),
       body: Stack(
         children: [
@@ -147,6 +154,21 @@ class _RedeemPageState extends State<RedeemPage> {
             .doc(currentUser.uid)
             .update({'cur_points': userPoints - reward.points});
 
+        // Add to redeem history in Firestore
+        await FirebaseFirestore.instance.collection('redeemHistory').add({
+          'userId': currentUser.uid,
+          'rewardId': reward.id,
+          'rewardName': reward.name,
+          'points': reward.points,
+          'redeemedAt': Timestamp.now(),
+        });
+
+        // Remove the redeemed reward from the redeem section
+        await FirebaseFirestore.instance.collection('rewards').doc(reward.id).delete();
+
+        // Update UI by fetching rewards again
+        _fetchRewards();
+
         // Show a confirmation message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -165,6 +187,102 @@ class _RedeemPageState extends State<RedeemPage> {
       }
     } catch (e) {
       print('Error redeeming reward: $e');
+    }
+  }
+
+  Future<void> _onSelected(BuildContext context, int item) async {
+    switch (item) {
+      case 0:
+        await _showRedeemHistory(context);
+        break;
+    }
+  }
+
+  Future<void> _showRedeemHistory(BuildContext context) async {
+    try {
+      // Fetch redeem history for the current user
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('redeemHistory')
+          .where('userId', isEqualTo: currentUser.uid)
+          .get();
+
+      final List<RedeemModel> history = querySnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return RedeemModel(
+          id: doc.id,
+          name: data['rewardName'],
+          points: data['points'],
+          dateUpTo: (data['redeemedAt'] as Timestamp).toDate(),
+        );
+      }).toList();
+
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Redeem History'),
+            content: Container(
+              width: double.maxFinite,
+              child: history.isEmpty
+                  ? Center(child: Text('No history available'))
+                  : ListView.builder(
+                shrinkWrap: true,
+                itemCount: history.length,
+                itemBuilder: (context, index) {
+                  final reward = history[index];
+                  return ListTile(
+                    title: Text(reward.name),
+                    subtitle: Text(
+                      'Redeemed on: ${DateFormat('dd MMM yyyy').format(reward.dateUpTo!)}',
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              if (userType == 'child')
+                TextButton(
+                  onPressed: () async {
+                    await _deleteAllRedeemHistory();
+                    Navigator.of(context).pop(); // Close the dialog
+                  },
+                  child: Text('Delete All'),
+                ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      print('Error fetching redeem history: $e');
+    }
+  }
+
+  Future<void> _deleteAllRedeemHistory() async {
+    try {
+      // Fetch all redeem history documents for the current user
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('redeemHistory')
+          .where('userId', isEqualTo: currentUser.uid)
+          .get();
+
+      // Delete each document
+      for (var doc in querySnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      // Show a confirmation message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('All redeem history deleted successfully!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('Error deleting redeem history: $e');
     }
   }
 }
@@ -188,7 +306,9 @@ class RedeemModel {
       id: id,
       name: map['name'],
       points: map['points'],
-      dateUpTo: map['dateUpTo'] != null ? (map['dateUpTo'] as Timestamp).toDate() : null, // Assign dateUpTo value
+      dateUpTo: map['dateUpTo'] != null ? (map['dateUpTo'] as Timestamp)
+          .toDate() : null, // Assign dateUpTo value
     );
   }
 }
+
