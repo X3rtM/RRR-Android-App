@@ -67,11 +67,9 @@ class _RedeemPageState extends State<RedeemPage> {
         title: Text('Rewards'),
         actions: [
           if (userType == 'child')
-            PopupMenuButton<int>(
-              onSelected: (item) => _onSelected(context, item),
-              itemBuilder: (context) => [
-                PopupMenuItem<int>(value: 0, child: Text('Redeem History')),
-              ],
+            IconButton(
+              icon: Icon(Icons.history), // Using the history icon
+              onPressed: () => _showRedeemHistory(context), // Method to handle the redeem history prompt
             ),
         ],
       ),
@@ -311,4 +309,3 @@ class RedeemModel {
     );
   }
 }
-

@@ -110,24 +110,7 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
           ),
-          ListTile(
-            title: Text('Language'),
-            trailing: DropdownButton<String>(
-              value: _selectedLanguage,
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedLanguage = newValue!;
-                });
-              },
-              items: <String>['English', 'Spanish', 'French']
-                  .map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-            ),
-          ),
+
           ListTile(
             title: Text('Logout'),
             onTap: () {
