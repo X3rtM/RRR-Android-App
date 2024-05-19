@@ -86,6 +86,7 @@ flutter:
      - assets/img/homepage.jpg
      - assets/img/validation.jpg
      - assets/animations/animation_1709532387249.json
+     - assets/img/pet-care.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

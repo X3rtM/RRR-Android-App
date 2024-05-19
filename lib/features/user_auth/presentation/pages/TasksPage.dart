@@ -31,6 +31,7 @@ class _TasksPageState extends State<TasksPage> {
   String _searchText = '';
   final TextEditingController _searchController = TextEditingController();
   bool _isMounted = false;
+  bool showTaskHistory = false;
 
   @override
   void initState() {
@@ -222,20 +223,23 @@ class _TasksPageState extends State<TasksPage> {
               ],
             ),
             PopupMenuButton<String>(
+              icon: Icon(Icons.history),
               onSelected: (option) {
-                if (option == 'Task History') {
-                  setState(() {
-                    tasks = tasks.where((task) => task.status == 'MarkedByParent').toList();
-                  });
-                } else {
-                  _fetchTasks('parent', userId);
-                }
+                setState(() {
+                  showTaskHistory = option == 'Task History';
+                });
+                _fetchTasks('parent', userId);
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                 PopupMenuItem<String>(
                   value: 'Task History',
                   child: Text('Task History'),
                 ),
+                if (showTaskHistory)
+                  PopupMenuItem<String>(
+                    value: 'Close Task History',
+                    child: Text('Close Task History'),
+                  ),
               ],
             ),
           ],
@@ -254,8 +258,11 @@ class _TasksPageState extends State<TasksPage> {
                       task.assignedTo.toLowerCase().contains(_searchText.toLowerCase());
                 }).toList();
 
-                tasksList = tasksList.where((task) => task.status != 'Completed').toList(); // Filter incomplete tasks
-
+                if (!showTaskHistory) {
+                  tasksList = tasksList.where((task) => task.status != 'MarkedByParent').toList();
+                } else {
+                  tasksList = tasksList.where((task) => task.status == 'MarkedByParent').toList();
+                }
                 tasksList.sort((a, b) {
                   switch (sortBy) {
                     case SortBy.Name:
@@ -301,25 +308,55 @@ class _TasksPageState extends State<TasksPage> {
                 }, isParent: false),
               ),
             ),
-            PopupMenuButton<SortBy>(
-              onSelected: (sortBy) {
-                setState(() {
-                  this.sortBy = sortBy;
-                });
-                _fetchTasks('child', userId); // Fetch tasks with updated sorting
+            PopupMenuButton<String>(
+              onSelected: (option) {
+                if (option == 'Task History') {
+                  setState(() {
+                    showTaskHistory = true;
+                  });
+                }else if (option == 'Close Child History') {
+                  setState(() {
+                    showTaskHistory = false;
+                    _fetchTasks('child', userId); // Fetch all tasks for the child
+                  });
+                }
+                else {
+                  setState(() {
+                    switch (option) {
+                      case 'Sort by Due Date':
+                        sortBy = SortBy.DueDate;
+                        break;
+                      case 'Sort by Assigned On':
+                        sortBy = SortBy.AssignedOn;
+                        break;
+                      case 'Sort by Points':
+                        sortBy = SortBy.Points;
+                        break;
+                    }
+                  });
+                  _fetchTasks('child', userId); // Fetch tasks with updated sorting
+                }
               },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<SortBy>>[
-                PopupMenuItem<SortBy>(
-                  value: SortBy.DueDate,
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'Sort by Due Date',
                   child: Text('Sort by Due Date'),
                 ),
-                PopupMenuItem<SortBy>(
-                  value: SortBy.AssignedOn,
+                PopupMenuItem<String>(
+                  value: 'Sort by Assigned On',
                   child: Text('Sort by Assigned On'),
                 ),
-                PopupMenuItem<SortBy>(
-                  value: SortBy.Points,
+                PopupMenuItem<String>(
+                  value: 'Sort by Points',
                   child: Text('Sort by Points'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'Task History',
+                  child: Text('Task History'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'Close Child History',
+                  child: Text('Close Child History'),
                 ),
               ],
             ),
@@ -335,7 +372,11 @@ class _TasksPageState extends State<TasksPage> {
               List<TaskModel> tasksList = tasks;
               if (snapshot.hasData) {
                 tasksList = tasksList.where((task) {
-                  return task.description.toLowerCase().contains(_searchText.toLowerCase());
+                  if (!showTaskHistory) {
+                    return task.status != 'MarkedByParent';
+                  } else {
+                    return task.status == 'MarkedByParent';
+                  }
                 }).toList();
                 switch (sortBy) {
                   case SortBy.DueDate:
@@ -386,30 +427,25 @@ class _TasksPageState extends State<TasksPage> {
     return filteredTasks;
   }
 
-  TextField buildSearchBar(Function(List<TaskModel>) filterTasks, {required bool isParent}) {
+  Widget buildSearchBar(Function(List<TaskModel>) onSearchChanged, {required bool isParent}) {
+    // Build search bar widget
     return TextField(
-      controller: _searchController, // Use the search controller
-      onChanged: (value) {
-        setState(() {
-          _searchText = value; // Update the search text
-        });
-        List<TaskModel> filtered = tasks.where((task) {
-          if (isParent) {
-            return task.description.toLowerCase().contains(_searchText.toLowerCase()) ||
-                task.assignedTo.toLowerCase().contains(_searchText.toLowerCase());
-          } else {
-            return task.description.toLowerCase().contains(_searchText.toLowerCase());
-          }
-        }).toList();
-        filterTasks(filtered);
-      },
+      controller: _searchController,
       decoration: InputDecoration(
-        hintText: isParent ? 'Search by description or name' : 'Search by description',
-        border: OutlineInputBorder(),
+        hintText: 'Search tasks...',
       ),
+      onChanged: (text) {
+        setState(() {
+          _searchText = text;
+        });
+        // Perform the search and call the onSearchChanged callback with filtered tasks
+        onSearchChanged(tasks.where((task) {
+          return task.description.toLowerCase().contains(text.toLowerCase()) ||
+              task.assignedTo.toLowerCase().contains(text.toLowerCase());
+        }).toList());
+      },
     );
   }
-
   String _formatDate(String dateString) {
     // Split the dateString using "-" as the separator
     List<String> dateParts = dateString.split('-');

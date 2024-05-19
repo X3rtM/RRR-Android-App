@@ -62,7 +62,7 @@ class _RewardsPageState extends State<RewardsPage> {
       }).toList();
 
       setState(() {
-        rewards = allRewards;
+        rewards = allRewards.where((reward) => reward.redemptionHistory.isEmpty).toList();
       });
     } catch (e) {
       print('Error fetching rewards: $e');
@@ -155,10 +155,22 @@ class _RewardsPageState extends State<RewardsPage> {
               ),
             if (reward.dateUpTo != null)
               Text(
-                'Expiry : ${DateFormat('dd MMM yyyy').format(reward.dateUpTo!)}',
+                'Expiry: ${DateFormat('dd MMM yyyy').format(reward.dateUpTo!)}',
                 style: TextStyle(
                   fontSize: 16.0,
                 ),
+              ),
+            if (reward.redemptionHistory.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: reward.redemptionHistory.map((redemption) {
+                  return Text(
+                    'Redeemed by: ${redemption['userName']} on ${DateFormat('dd MMM yyyy').format((redemption['date'] as Timestamp).toDate())}',
+                    style: TextStyle(
+                      fontSize: 16.0,
+                    ),
+                  );
+                }).toList(),
               ),
           ],
         ),
@@ -169,7 +181,12 @@ class _RewardsPageState extends State<RewardsPage> {
             _removeReward(reward);
           },
         )
-            : null,
+            : IconButton(
+          icon: Icon(Icons.redeem),
+          onPressed: () {
+            _redeemReward(reward);
+          },
+        ),
       ),
     );
   }
@@ -295,6 +312,7 @@ class _RewardsPageState extends State<RewardsPage> {
         'points': points,
         'assignedTo': assignedTo,
         'dateUpTo': dateUpTo,
+        'redemptionHistory': [], // Initialize as empty list
       });
 
       setState(() {
@@ -304,6 +322,7 @@ class _RewardsPageState extends State<RewardsPage> {
           points: points,
           assignedTo: assignedTo,
           dateUpTo: dateUpTo,
+          redemptionHistory: [],
         ));
       });
     } catch (e) {
@@ -321,6 +340,52 @@ class _RewardsPageState extends State<RewardsPage> {
       print('Error removing reward: $e');
     }
   }
+
+  void _redeemReward(RewardModel reward) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Redeem Reward'),
+          content: Text('Are you sure you want to redeem this reward?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                _processRedemption(reward);
+                Navigator.of(context).pop();
+              },
+              child: Text('Redeem'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _processRedemption(RewardModel reward) async {
+    try {
+      final redemption = {
+        'userName': currentUser.displayName,
+        'date': Timestamp.now(),
+      };
+
+      await FirebaseFirestore.instance.collection('rewards').doc(reward.id).update({
+        'redemptionHistory': FieldValue.arrayUnion([redemption]),
+      });
+
+      setState(() {
+        rewards.remove(reward); // Remove the redeemed reward from the list
+      });
+    } catch (e) {
+      print('Error redeeming reward: $e');
+    }
+  }
 }
 
 class RewardModel {
@@ -329,6 +394,7 @@ class RewardModel {
   final int points;
   final String? assignedTo;
   final DateTime? dateUpTo;
+  final List<Map<String, dynamic>> redemptionHistory; // Add this field
 
   RewardModel({
     required this.id,
@@ -336,6 +402,7 @@ class RewardModel {
     required this.points,
     this.assignedTo,
     this.dateUpTo,
+    this.redemptionHistory = const [],
   });
 
   factory RewardModel.fromMap(String id, dynamic data) {
@@ -346,6 +413,7 @@ class RewardModel {
       points: map['points'],
       assignedTo: map['assignedTo'],
       dateUpTo: map['dateUpTo'] != null ? (map['dateUpTo'] as Timestamp).toDate() : null,
+      redemptionHistory: List<Map<String, dynamic>>.from(map['redemptionHistory'] ?? []),
     );
   }
 }
