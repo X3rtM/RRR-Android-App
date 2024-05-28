@@ -44,14 +44,22 @@ class _ValidationPageState extends State<ValidationPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool isDarkMode=Theme.of(context).brightness==Brightness.dark;
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('Validation Page'),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1.0),
+          child: Container(
+            height: 1.0,
+            color: Colors.grey,
+          ),
+        ),
       ),
       body: Container(
         decoration: BoxDecoration(
-          image: DecorationImage(
+          image: isDarkMode ? null: DecorationImage(
             image: AssetImage("assets/img/task.jpg"),
             fit: BoxFit.cover,
           ),
@@ -90,7 +98,7 @@ class _ValidationPageState extends State<ValidationPage> {
           children: [
             IconButton(
               onPressed: () {
-                _completeTask(task);
+                _showAssignPointsDialog(task);
               },
               icon: Icon(Icons.check),
               color: Colors.green,
@@ -133,30 +141,81 @@ class _ValidationPageState extends State<ValidationPage> {
     return null;
   }
 
-  _completeTask(TaskModel task) async {
+  _showAssignPointsDialog(TaskModel task) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        int? assignedPoints;
+        return AlertDialog(
+          title: Text('Assign Points'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Assign points for the task "${task.description}"'),
+              SizedBox(height: 16),
+              Text('Max Points: ${task.redeemPoints}'),
+              TextField(
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: 'Points'),
+                onChanged: (value) {
+                  assignedPoints = int.tryParse(value);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (assignedPoints != null &&
+                    assignedPoints! <= task.redeemPoints) {
+                  _completeTask(task, assignedPoints!);
+                  Navigator.of(context).pop();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Invalid points. Please enter valid points.'),
+                    ),
+                  );
+                }
+              },
+              child: Text('Assign'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  _completeTask(TaskModel task, int assignedPoints) async {
     try {
       await FirebaseFirestore.instance.collection('tasks').doc(task.id).update({
         'status': 'MarkedByParent',
+        'assignedPoints': assignedPoints,
       });
       final taskDoc = await FirebaseFirestore.instance.collection('tasks').doc(task.id).get();
-      final redeemPoints = taskDoc['redeemPoints'];
       final userId = task.assignedTo; // Get userId from task
-      print('Redeem Points: $redeemPoints');
-      _updateUserPoints(redeemPoints, userId); // Pass userId
+      print('Assigned Points: $assignedPoints');
+      _updateUserPoints(assignedPoints, userId); // Pass userId
       _fetchTasksForValidation();
     } catch (e) {
       print('Error completing task: $e');
     }
   }
 
-  Future<void> _updateUserPoints(int redeemPoints, String userId) async {
+  Future<void> _updateUserPoints(int assignedPoints, String userId) async {
     try {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
       final userData = userDoc.data();
       if (userData != null && userData['userType'] == 'child') {
         final currentPoints = userData['cur_points'] ?? 0;
         await FirebaseFirestore.instance.collection('users').doc(userId).update({
-          'cur_points': currentPoints + redeemPoints, // Increment user points
+          'cur_points': currentPoints + assignedPoints, // Increment user points
         });
       }
     } catch (e) {

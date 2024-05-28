@@ -65,6 +65,13 @@ class _RedeemPageState extends State<RedeemPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('Rewards'),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1.0),
+          child: Container(
+            height: 1.0,
+            color: Colors.grey,
+          ),
+        ),
         actions: [
           if (userType == 'child')
             IconButton(

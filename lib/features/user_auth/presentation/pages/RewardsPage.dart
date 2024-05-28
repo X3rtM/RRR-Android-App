@@ -77,6 +77,13 @@ class _RewardsPageState extends State<RewardsPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('Rewards'),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1.0),
+          child: Container(
+            height: 1.0,
+            color: Colors.grey,
+          ),
+        ),
       ),
       body: Stack(
         children: [

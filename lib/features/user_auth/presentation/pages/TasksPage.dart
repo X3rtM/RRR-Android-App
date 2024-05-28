@@ -162,6 +162,13 @@ class _TasksPageState extends State<TasksPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text('Tasks'),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1.0),
+          child: Container(
+            height: 1.0,
+            color: Colors.grey,
+          ),
+        ),
       ),
       body: Container(
         decoration: BoxDecoration(

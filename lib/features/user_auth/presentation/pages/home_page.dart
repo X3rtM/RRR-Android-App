@@ -1,30 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'TasksPage.dart';
 import 'ProfilePage.dart';
 import 'SettingsPage.dart';
 import 'ValidationPage.dart';
 import 'RewardsPage.dart';
 import 'RedeemPage.dart';
-
-void main() {
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Result Reward Redemption System',
-      theme: ThemeData(
-        primarySwatch: Colors.lightBlue,
-      ),
-      home: HomePage(),
-    );
-  }
-}
+import 'NotificationPage.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -36,6 +19,7 @@ class _HomePageState extends State<HomePage> {
   late String userType = '';
   late User currentUser;
   List<Map<String, dynamic>> childProfiles = [];
+  int _notificationCount=0;
 
   final List<Widget> _pagesParent = [
     HomePageContent(),
@@ -52,6 +36,7 @@ class _HomePageState extends State<HomePage> {
     RedeemPage(),
     ProfilePage(),
     SettingsPage(),
+    NotificationPage(),
   ];
 
   @override
@@ -60,6 +45,7 @@ class _HomePageState extends State<HomePage> {
     currentUser = FirebaseAuth.instance.currentUser!;
     _getUserType(currentUser.uid);
     _loadChildProfiles();
+    _listenForNotifications();
   }
 
   Future<void> _getUserType(String userId) async {
@@ -67,6 +53,20 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       userType = userDoc.data()!['userType'] ?? '';
       _selectedIndex = 0;
+    });
+  }
+
+  Future<void> _listenForNotifications() async{
+    FirebaseFirestore.instance.collection('tasks').where('assignedTo',isEqualTo: currentUser.uid).snapshots().listen((snapshot){
+      int newNotificationCount=0;
+      snapshot.docs.forEach((doc){
+        if (doc['status']=='Incomplete' || doc['status']=='MarkedByParent'){
+          newNotificationCount++;
+        }
+      });
+      setState(() {
+        _notificationCount=newNotificationCount;
+      });
     });
   }
 
@@ -101,20 +101,67 @@ class _HomePageState extends State<HomePage> {
           ? AppBar(
         automaticallyImplyLeading: false,
         title: Text('Home Page'),
+      actions: <Widget>[
+        if (userType=='child')
+          Stack(
+            children: [
+              IconButton(icon: Icon(Icons.notifications, color:Colors.grey),
+                  onPressed: (){
+                    Navigator.push(context,MaterialPageRoute(builder: (context)=>NotificationPage()));
+                  },
+              ),
+              Positioned(
+                  right:0,
+                  top:0,
+                  child: Container(
+                    padding: EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color:Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '$_notificationCount',
+                      style:TextStyle(
+                        color:Colors.white,
+                        fontSize: 10,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ),
+            ],
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1.0),
+          child: Container(
+    height: 1.0,
+    color:Colors.grey,
+    ),
+          ),
       )
-          : null,
+        :null,
       body: Container(
         decoration: BoxDecoration(
-          image: !isDarkMode
-              ? DecorationImage(
+          image: isDarkMode ? null: DecorationImage(
             image: AssetImage('assets/img/homepage.jpg'),
             fit: BoxFit.cover,
-          )
-              : null,
+          ),
         ),
         child: pages[_selectedIndex],
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+        Container(
+        height: 1.0,
+        color: Colors.grey,
+      ),
+      BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
@@ -141,6 +188,8 @@ class _HomePageState extends State<HomePage> {
         unselectedIconTheme: IconThemeData(size: 24),
         showSelectedLabels: false,
         showUnselectedLabels: false,
+      ),
+      ],
       ),
       floatingActionButton: userType == 'parent' && _selectedIndex == 0
           ? FloatingActionButton(
@@ -222,30 +271,44 @@ class _HomePageState extends State<HomePage> {
 class HomePageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    List<Map<String, dynamic>> childProfiles =
-    (context.findAncestorStateOfType<_HomePageState>()?.childProfiles ??
-        []);
+    List<Map<String, dynamic>> childProfiles =(context.findAncestorStateOfType<_HomePageState>()?.childProfiles ?? []);
+    bool isDarkMode = Theme.of(context).brightness==Brightness.dark;
+    _HomePageState? homePageState = context.findAncestorStateOfType<_HomePageState>();
+    String userType= context.findAncestorStateOfType<_HomePageState>()?.userType ?? '';
 
-    return Container(
+    return Padding(
       padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage('assets/img/homepage.jpg'),
-          fit: BoxFit.cover,
-        ),
+      child: Center(
+        child: userType == 'parent'
+            ? _buildParentContent(homePageState?.childProfiles ?? [])
+            : _buildChildContent(),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (childProfiles.isNotEmpty) ...[
-            Expanded(
-              child: _buildChildCards(childProfiles),
-            ),
-            SizedBox(height: 20), // Add some space between child cards and table
-          ],
-          _buildTable(), // Always show the table below child cards or alone
+    );
+  }
+
+  Widget _buildParentContent(List<Map<String, dynamic>> childProfiles) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (childProfiles.isNotEmpty) ...[
+          Expanded(
+            child: _buildChildCards(childProfiles),
+          ),
         ],
-      ),
+        _buildTable(),
+      ],
+    );
+  }
+
+  Widget _buildChildContent() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'Home Page',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 
