@@ -37,7 +37,7 @@ class _NotificationPageState extends State<NotificationPage> {
 
           return ListView(
             children: snapshot.data!.docs.map((doc) {
-              return NotificationItem(taskData: doc.data() as Map<String, dynamic>);
+              return NotificationItem(taskData: doc.data() as Map<String, dynamic>, docId: doc.id);
             }).toList(),
           );
         },
@@ -48,25 +48,37 @@ class _NotificationPageState extends State<NotificationPage> {
 
 class NotificationItem extends StatelessWidget {
   final Map<String, dynamic> taskData;
+  final String docId;
 
-  NotificationItem({required this.taskData});
+  NotificationItem({required this.taskData, required this.docId});
 
   @override
   Widget build(BuildContext context) {
     final String description = taskData['description'];
     final String status = taskData['status'];
 
-    // Check if the task is newly added based on its status
     final bool isNewTask = status == 'Incomplete' || status == 'MarkedByParent';
 
     return Card(
       child: ListTile(
         title: Text(isNewTask ? 'A new task has been assigned to you' : description),
         subtitle: Text('Status: $status'),
-        trailing: Text(taskData['dueDate']),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(taskData['dueDate']),
+            IconButton(
+              icon: Icon(Icons.delete),
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('tasks')
+                    .doc(docId)
+                    .delete();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 }
-
-

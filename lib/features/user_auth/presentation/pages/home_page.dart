@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -93,8 +94,12 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> pages = userType == 'parent' ? _pagesParent : _pagesChild;
-    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    List<Widget> pages;
+    if (userType == 'parent') {
+      pages = _pagesParent;
+    } else {
+      pages = _pagesChild;
+    }    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: _selectedIndex == 0
@@ -281,7 +286,7 @@ class HomePageContent extends StatelessWidget {
       child: Center(
         child: userType == 'parent'
             ? _buildParentContent(homePageState?.childProfiles ?? [])
-            : _buildChildContent(),
+            : _buildChildContent(context),
       ),
     );
   }
@@ -300,15 +305,139 @@ class HomePageContent extends StatelessWidget {
     );
   }
 
-  Widget _buildChildContent() {
+  Widget _buildChildContent(BuildContext context) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          'Home Page',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-      ],
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Welcome Child!',
+              style: TextStyle(fontSize: 20),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => TasksPage()));
+              },
+              child: Text('Complete a Task'),
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Task Advice:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            ),
+            SizedBox(height: 10),
+            Table(
+              border: TableBorder.all(color: Colors.black),
+              columnWidths: {
+                0: FlexColumnWidth(1),
+                1: FlexColumnWidth(2),
+              },
+              children: [
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Common Advice',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Important Advice',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Stay organized'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Focus on one task at a time'),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Set specific goals'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Take breaks when needed'),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Prioritize tasks'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Ask for help if needed'),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Break tasks into smaller steps'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Stay positive and motivated'),
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Avoid multitasking'),
+                      ),
+                    ),
+                    TableCell(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Celebrate your achievements'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
     );
   }
 
