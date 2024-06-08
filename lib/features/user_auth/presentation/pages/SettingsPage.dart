@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_firebase/features/user_auth/presentation/pages/home_page.dart';
@@ -67,10 +68,22 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  bool _isMounted = false;
   bool _darkModeEnabled = MyApp.currentThemeMode == ThemeMode.dark;
-  String _selectedLanguage = 'English';
   bool _enableNotifications = true;
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _isMounted = true;
+  }
+
+  @override
+  void dispose() {
+    _isMounted = false;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,12 +127,24 @@ class _SettingsPageState extends State<SettingsPage> {
           ListTile(
             title: Text('Logout'),
             onTap: () {
-              Navigator.popUntil(context, ModalRoute.withName('/login'));
+              _logout(context);
             },
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    if (!_isMounted) return;
+
+    try {
+      await FirebaseAuth.instance.signOut();
+      if (!_isMounted) return;
+      Navigator.popUntil(context, ModalRoute.withName('/login'));
+    } catch (e) {
+      print('Error signing out: $e');
+    }
   }
 
   void _toggleDarkMode(bool enabled) {

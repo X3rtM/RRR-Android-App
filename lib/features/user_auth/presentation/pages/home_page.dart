@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -45,8 +44,9 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     currentUser = FirebaseAuth.instance.currentUser!;
     _getUserType(currentUser.uid);
-    _loadChildProfiles();
-    _listenForNotifications();
+    _loadChildProfiles().then((_) {
+      _listenForNotifications();
+    });
   }
 
   Future<void> _getUserType(String userId) async {
@@ -71,25 +71,25 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Future<void> _loadChildProfiles() async {
+  Future<List<Map<String, dynamic>>> _loadChildProfiles() async {
     final userDoc =
     await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
     List<Map<String, dynamic>> profiles = [];
     if (userDoc.exists && userDoc.data()!['children'] != null) {
       List<String> childrenIds = List<String>.from(userDoc.data()!['children']);
-      for (var childId in childrenIds) {
-        var childData =
-        await FirebaseFirestore.instance.collection('users').doc(childId).get();
+      final childrenDocs = await FirebaseFirestore.instance
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: childrenIds)
+          .get();
+      for (var childDoc in childrenDocs.docs) {
         profiles.add({
-          'id': childId,
-          'name': childData['name'],
-          'email': childData['email']
+          'id': childDoc.id,
+          'name': childDoc['name'],
+          'email': childDoc['email']
         });
       }
     }
-    setState(() {
-      childProfiles = profiles;
-    });
+    return profiles;
   }
 
   @override
@@ -99,8 +99,26 @@ class _HomePageState extends State<HomePage> {
       pages = _pagesParent;
     } else {
       pages = _pagesChild;
-    }    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    }
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
+    return FutureBuilder<List<Map<String, dynamic>>>(
+        future: _loadChildProfiles(),
+    builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+    return Scaffold(
+    body: Center(
+    child: Container(),
+    ),
+    );
+    } else if (snapshot.hasError) {
+    return Scaffold(
+    body: Center(
+    child: Text('Error: ${snapshot.error}'),
+    ),
+    );
+    } else {
+    childProfiles = snapshot.data ?? [];
     return Scaffold(
       appBar: _selectedIndex == 0
           ? AppBar(
@@ -200,6 +218,9 @@ class _HomePageState extends State<HomePage> {
           ? FloatingActionButton(
           onPressed: () => _addChild(context), child: Icon(Icons.add))
           : null,
+    );
+  }
+    },
     );
   }
 
