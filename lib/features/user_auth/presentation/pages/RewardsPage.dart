@@ -30,8 +30,7 @@ class _RewardsPageState extends State<RewardsPage> {
 
   Future<void> _getUserType(String userId) async {
     try {
-      final userDoc =
-      await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
       if (userDoc.exists) {
         final userType = userDoc['userType']?.toString() ?? '';
         setState(() {
@@ -53,8 +52,7 @@ class _RewardsPageState extends State<RewardsPage> {
             .where('assignedTo', isEqualTo: currentUser.uid)
             .get();
       } else {
-        querySnapshot =
-        await FirebaseFirestore.instance.collection('rewards').get();
+        querySnapshot = await FirebaseFirestore.instance.collection('rewards').get();
       }
 
       final List<RewardModel> allRewards = querySnapshot.docs.map((doc) {
@@ -226,51 +224,61 @@ class _RewardsPageState extends State<RewardsPage> {
     int points = 0;
     DateTime? selectedDate;
     String? assignedToUID;
+    String assignedToName = '';
+    String? errorText;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Add Reward'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  decoration: InputDecoration(labelText: 'Name'),
-                  onChanged: (value) {
-                    name = value;
-                  },
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(labelText: 'Name'),
+                      onChanged: (value) {
+                        name = value;
+                      },
+                    ),
+                    TextField(
+                      decoration: InputDecoration(labelText: 'Points'),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        points = int.tryParse(value) ?? 0;
+                      },
+                    ),
+                    TextField(
+                      decoration: InputDecoration(labelText: 'Assigned To', errorText: errorText),
+                      onChanged: (value) {
+                        assignedToName = value;
+                        _validateUserName(value).then((uid) {
+                          setState(() {
+                            assignedToUID = uid;
+                            errorText = uid == null ? 'User doesn\'t exist' : null;
+                          });
+                        });
+                      },
+                    ),
+                    TextField(
+                      controller: dateController,
+                      readOnly: true,
+                      decoration: InputDecoration(labelText: 'Expiry (dd/MM/yyyy)'),
+                      onTap: () {
+                        _selectDate(context).then((value) {
+                          setState(() {
+                            dateController.text = DateFormat('dd/MM/yyyy').format(value!);
+                            selectedDate = value;
+                          });
+                        });
+                      },
+                    ),
+                  ],
                 ),
-                TextField(
-                  decoration: InputDecoration(labelText: 'Points'),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    points = int.tryParse(value) ?? 0;
-                  },
-                ),
-                TextField(
-                  decoration: InputDecoration(labelText: 'Assigned To'),
-                  onChanged: (value) {
-                    _getUserUIDByName(value).then((uid) {
-                      setState(() {
-                        assignedToUID = uid;
-                      });
-                    });
-                  },
-                ),
-                TextField(
-                  controller: dateController,
-                  readOnly: true,
-                  decoration: InputDecoration(labelText: 'Expiry (dd/MM/yyyy)'),
-                  onTap: () {
-                    _selectDate(context).then((value) {
-                      dateController.text = DateFormat('dd/MM/yyyy').format(value!);
-                      selectedDate = value;
-                    });
-                  },
-                ),
-              ],
-            ),
+              );
+            },
           ),
           actions: <Widget>[
             TextButton(
@@ -281,8 +289,10 @@ class _RewardsPageState extends State<RewardsPage> {
             ),
             TextButton(
               onPressed: () {
-                _addReward(name, points, assignedToUID, selectedDate);
-                Navigator.of(context).pop();
+                if (errorText == null) {
+                  _addReward(name, points, assignedToUID, selectedDate);
+                  Navigator.of(context).pop();
+                }
               },
               child: Text('Save'),
             ),
@@ -292,14 +302,24 @@ class _RewardsPageState extends State<RewardsPage> {
     );
   }
 
-  Future<String?> _getUserUIDByName(String userName) async {
-    final userQuerySnapshot = await FirebaseFirestore.instance.collection('users').where('name', isEqualTo: userName).get();
-    final userDocs = userQuerySnapshot.docs;
-    if (userDocs.isNotEmpty) {
-      return userDocs.first.id;
-    } else {
-      return null;
+  Future<String?> _validateUserName(String userName) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
+      if (userDoc.exists) {
+        List<dynamic> children = userDoc['children'];
+        final userQuerySnapshot = await FirebaseFirestore.instance.collection('users').where('name', isEqualTo: userName).get();
+        final userDocs = userQuerySnapshot.docs;
+        if (userDocs.isNotEmpty) {
+          final childUser = userDocs.first;
+          if (children.contains(childUser.id)) {
+            return childUser.id;
+          }
+        }
+      }
+    } catch (e) {
+      print('Error validating user name: $e');
     }
+    return null;
   }
 
   Future<DateTime?> _selectDate(BuildContext context) async {
